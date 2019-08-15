@@ -4,11 +4,17 @@ version = "0.1.0"
 authors = ["ThinkChaos <ThinkChaos@users.noreply.github.com>"]
 edition = "2018"
 
+[features]
+dev = ["listenfd"]
+
 [dependencies]
 actix = "0.8"
 actix-http = "0.2"
 actix-service = "0.4"
 actix-web = "1.0"
+diesel = { version = "1.4", default-features = false, features = ["sqlite"] }
 env_logger = "0.6"
 futures = "0.1"
+listenfd = { version = "0.3", optional = true }
 serde = "1.0"
+uuid = { version = "0.7", features = ["v4"] }
