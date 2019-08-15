@@ -14,7 +14,7 @@ mod utils;
 #[derive(Clone)]
 pub struct Data {
     secret: String,
-    db: Addr<db::Executor>,
+    db: db::Helper,
 }
 
 fn main() -> Result<(), std::io::Error> {
@@ -26,9 +26,11 @@ fn main() -> Result<(), std::io::Error> {
     let sys = actix::System::new("ggrrss");
 
     // Start 3 db executors
-    let db = SyncArbiter::start(3, || {
-        db::Executor::new("ggrrss.sqlite").expect("Failed to open db")
-    });
+    let db = db::Helper::new(
+        SyncArbiter::start(3, ||
+            db::Executor::new("ggrrss.sqlite").expect("Failed to open db")
+        )
+    );
 
     let data = Data {
         secret: "the-secret".to_string(),

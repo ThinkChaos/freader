@@ -9,7 +9,7 @@ pub struct Executor {
 }
 
 impl Executor {
-    pub fn new(connspec: &str) -> ConnectionResult<Executor> {
+    pub fn new(connspec: &str) -> ConnectionResult<Self> {
         Ok(Executor {
             conn: SqliteConnection::establish(connspec)?
         })
