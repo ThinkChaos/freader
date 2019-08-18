@@ -33,12 +33,12 @@ impl Message for CreateSubscription {
 impl Handler<CreateSubscription> for Executor {
     type Result = <CreateSubscription as Message>::Result;
 
-    fn handle(&mut self, msg: CreateSubscription, _: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: CreateSubscription, ctx: &mut Self::Context) -> Self::Result {
         use crate::schema::subscriptions::dsl::*;
 
-        let uuid = Uuid::new_v4().to_string();
+        let uuid = Uuid::new_v4();
         let subscription = NewSubscription {
-            id: &uuid,
+            id: &uuid.to_string(),
             feed_url: &msg.feed_url,
             title: &msg.title,
         };
@@ -47,11 +47,26 @@ impl Handler<CreateSubscription> for Executor {
             .values(&subscription)
             .execute(&self.conn)?;
 
-        let mut items = subscriptions
-            .filter(id.eq(&uuid))
-            .load(&self.conn)?;
+        self.handle(GetSubscription(uuid), ctx)
+    }
+}
 
-        Ok(items.pop().unwrap())
+
+pub struct GetSubscription(pub Uuid);
+
+impl Message for GetSubscription {
+    type Result = diesel::QueryResult<Subscription>;
+}
+
+impl Handler<GetSubscription> for Executor {
+    type Result = <GetSubscription as Message>::Result;
+
+    fn handle(&mut self, query: GetSubscription, _: &mut Self::Context) -> Self::Result {
+        use crate::schema::subscriptions::dsl::*;
+
+        subscriptions
+            .find(query.0.to_string())
+            .get_result(&self.conn)
     }
 }
 
@@ -69,5 +84,25 @@ impl Handler<GetSubscriptions> for Executor {
         use crate::schema::subscriptions::dsl::*;
 
         subscriptions.load(&self.conn)
+    }
+}
+
+
+pub struct UpdateSubscription(pub Subscription);
+
+impl Message for UpdateSubscription {
+    type Result = diesel::QueryResult<Subscription>;
+}
+
+impl Handler<UpdateSubscription> for Executor {
+    type Result = <UpdateSubscription as Message>::Result;
+
+    fn handle(&mut self, query: UpdateSubscription, _: &mut Self::Context) -> Self::Result {
+        let subscription = query.0;
+
+        diesel::update(&subscription)
+            .set(&subscription)
+            .execute(&self.conn)
+            .map(|_| subscription)
     }
 }

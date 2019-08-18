@@ -3,7 +3,7 @@ use serde::Serialize;
 use super::schema::subscriptions;
 
 
-#[derive(Debug, Serialize, Queryable)]
+#[derive(Debug, Serialize, Identifiable, AsChangeset, Queryable)]
 pub struct Subscription {
     pub id: String,
     pub feed_url: String,

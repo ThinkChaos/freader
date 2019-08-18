@@ -7,6 +7,7 @@ pub fn service() -> impl HttpServiceFactory {
     web::scope("/subscription")
         .route("/list", web::get().to_async(list))
         .route("/quickadd", web::post().to_async(quickadd))
+        .route("/edit", web::post().to_async(edit))
 }
 
 
@@ -56,10 +57,10 @@ struct QuickAddResponse<'a> {
     num_results: u8,
 }
 
-fn quickadd(info: web::Query<QuickAddQuery>, data: web::Data<crate::Data>) -> impl Future<Item = HttpResponse, Error = actix_web::Error> {
+fn quickadd(query: web::Query<QuickAddQuery>, data: web::Data<crate::Data>) -> impl Future<Item = HttpResponse, Error = actix_web::Error> {
     data.db
         .clone()
-        .create_subscription(info.url.clone())
+        .create_subscription(query.url.clone())
         .from_err()
         .and_then(|subscription| {
             HttpResponse::Ok().json(
@@ -70,4 +71,42 @@ fn quickadd(info: web::Query<QuickAddQuery>, data: web::Data<crate::Data>) -> im
                 }
             )
         })
+}
+
+
+#[derive(Debug, Deserialize)]
+struct EditData {
+    #[serde(rename="s")]
+    id: String,
+    // #[serde(rename="ac")]
+    // operation: Option<String>, // "edit"
+    #[serde(rename="t")]
+    title: Option<String>,
+    #[serde(rename="a")]
+    add_category: Option<String>,
+    #[serde(rename="r")]
+    remove_category: Option<String>,
+}
+
+fn edit(data: web::Data<crate::Data>, form: web::Form<EditData>) -> Box<dyn Future<Item = HttpResponse, Error = actix_web::Error>> {
+    let uuid = match form.id.parse() {
+        Ok(u) => u,
+        Err(_) => return Box::new(futures::future::ok(HttpResponse::BadRequest().body("Invalid subscription id"))),
+    };
+
+    Box::new(data.db
+        .clone()
+        .get_subscription(uuid)
+        .and_then(move |mut subscription| {
+            if let Some(ref title) = form.title {
+                subscription.title = title.clone();
+            }
+
+            data.db
+                .clone()
+                .update_subscription(subscription)
+        })
+        .from_err()
+        .map(|_| HttpResponse::Ok().body("OK"))
+    )
 }

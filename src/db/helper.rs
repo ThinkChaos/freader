@@ -2,6 +2,7 @@ use actix::prelude::*;
 use actix_web::ResponseError;
 use futures::future::{self, Future};
 use std::fmt::{self, Display};
+use uuid::Uuid;
 
 use crate::models::*;
 use super::executor::*;
@@ -57,9 +58,21 @@ impl Helper {
         ))
     }
 
+    pub fn get_subscription(&mut self, uuid: Uuid) -> impl DatabaseFuture<Subscription> {
+        self.map(self.executor.send(
+            GetSubscription(uuid)
+        ))
+    }
+
     pub fn get_subscriptions(&mut self) -> impl DatabaseFuture<Vec<Subscription>> {
         self.map(self.executor.send(
             GetSubscriptions
+        ))
+    }
+
+    pub fn update_subscription(&mut self, subscription: Subscription) -> impl DatabaseFuture<Subscription> {
+        self.map(self.executor.send(
+            UpdateSubscription(subscription)
         ))
     }
 }
