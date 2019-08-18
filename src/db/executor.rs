@@ -23,6 +23,7 @@ impl Actor for Executor {
 
 pub struct CreateSubscription {
     pub feed_url: String,
+    pub title: String,
 }
 
 impl Message for CreateSubscription {
@@ -39,6 +40,7 @@ impl Handler<CreateSubscription> for Executor {
         let subscription = NewSubscription {
             id: &uuid,
             feed_url: &msg.feed_url,
+            title: &msg.title,
         };
 
         diesel::insert_into(subscriptions)

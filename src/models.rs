@@ -7,6 +7,7 @@ use super::schema::subscriptions;
 pub struct Subscription {
     pub id: String,
     pub feed_url: String,
+    pub title: String,
 }
 
 #[derive(Debug, Insertable)]
@@ -14,4 +15,5 @@ pub struct Subscription {
 pub struct NewSubscription<'a> {
     pub id: &'a str,
     pub feed_url: &'a str,
+    pub title: &'a str,
 }

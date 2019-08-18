@@ -53,7 +53,7 @@ impl Helper {
 
     pub fn create_subscription(&mut self, feed_url: String) -> impl DatabaseFuture<Subscription> {
         self.map(self.executor.send(
-            CreateSubscription { feed_url }
+            CreateSubscription { feed_url: feed_url.clone(), title: feed_url }
         ))
     }
 

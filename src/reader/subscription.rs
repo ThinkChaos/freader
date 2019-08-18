@@ -33,7 +33,7 @@ fn list(data: web::Data<crate::Data>) -> impl Future<Item = HttpResponse, Error 
                         .iter()
                         .map(|s| ListResponseItem {
                             id: &s.id,
-                            title: &s.feed_url, // FIXME: should be real title, not url
+                            title: &s.title,
                         }).collect::<Vec<_>>(),
                 }
             )
