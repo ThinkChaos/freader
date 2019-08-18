@@ -106,3 +106,25 @@ impl Handler<UpdateSubscription> for Executor {
             .map(|_| subscription)
     }
 }
+
+
+pub struct TransformSubscription(pub Uuid, pub Box<dyn FnOnce(&mut Subscription) + Send>);
+
+impl Message for TransformSubscription {
+    type Result = diesel::QueryResult<Subscription>;
+}
+
+impl Handler<TransformSubscription> for Executor {
+    type Result = <TransformSubscription as Message>::Result;
+
+    fn handle(&mut self, query: TransformSubscription, ctx: &mut Self::Context) -> Self::Result {
+        let (uuid, transform) = (query.0, query.1);
+
+        self.handle(GetSubscription(uuid), ctx)
+            .and_then(move |mut subscription| {
+                transform(&mut subscription);
+
+                self.handle(UpdateSubscription(subscription), ctx)
+            })
+    }
+}

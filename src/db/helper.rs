@@ -75,4 +75,13 @@ impl Helper {
             UpdateSubscription(subscription)
         ))
     }
+
+    pub fn transform_subscription<F>(&mut self, uuid: Uuid, transform: F) -> impl DatabaseFuture<Subscription>
+    where
+        F: FnOnce(&mut Subscription) + Send + 'static
+    {
+        self.map(self.executor.send(
+            TransformSubscription(uuid, Box::new(transform))
+        ))
+    }
 }

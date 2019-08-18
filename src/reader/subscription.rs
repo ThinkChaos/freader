@@ -88,7 +88,7 @@ struct EditData {
     remove_category: Option<String>,
 }
 
-fn edit(data: web::Data<crate::Data>, form: web::Form<EditData>) -> Box<dyn Future<Item = HttpResponse, Error = actix_web::Error>> {
+fn edit(data: web::Data<crate::Data>, mut form: web::Form<EditData>) -> Box<dyn Future<Item = HttpResponse, Error = actix_web::Error>> {
     let uuid = match form.id.parse() {
         Ok(u) => u,
         Err(_) => return Box::new(futures::future::ok(HttpResponse::BadRequest().body("Invalid subscription id"))),
@@ -96,15 +96,10 @@ fn edit(data: web::Data<crate::Data>, form: web::Form<EditData>) -> Box<dyn Futu
 
     Box::new(data.db
         .clone()
-        .get_subscription(uuid)
-        .and_then(move |mut subscription| {
-            if let Some(ref title) = form.title {
-                subscription.title = title.clone();
+        .transform_subscription(uuid, move |subscription| {
+            if form.title.is_some() {
+                subscription.title = form.title.take().unwrap();
             }
-
-            data.db
-                .clone()
-                .update_subscription(subscription)
         })
         .from_err()
         .map(|_| HttpResponse::Ok().body("OK"))
