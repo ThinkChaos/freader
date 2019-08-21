@@ -1,8 +1,8 @@
 use actix::prelude::*;
 use diesel::prelude::*;
-use uuid::Uuid;
 
 use crate::models::*;
+use crate::db;
 
 pub struct Executor {
     conn: SqliteConnection,
@@ -34,11 +34,11 @@ impl Handler<CreateSubscription> for Executor {
     type Result = <CreateSubscription as Message>::Result;
 
     fn handle(&mut self, msg: CreateSubscription, ctx: &mut Self::Context) -> Self::Result {
-        use crate::schema::subscriptions::dsl::*;
+        use crate::schema::subscriptions::dsl::subscriptions;
 
-        let uuid = Uuid::new_v4();
+        let id = db::Id::new();
         let subscription = NewSubscription {
-            id: &uuid.to_string(),
+            id: &id,
             feed_url: &msg.feed_url,
             title: &msg.title,
         };
@@ -47,12 +47,12 @@ impl Handler<CreateSubscription> for Executor {
             .values(&subscription)
             .execute(&self.conn)?;
 
-        self.handle(GetSubscription(uuid), ctx)
+        self.handle(GetSubscription(id), ctx)
     }
 }
 
 
-pub struct GetSubscription(pub Uuid);
+pub struct GetSubscription(pub db::Id);
 
 impl Message for GetSubscription {
     type Result = diesel::QueryResult<Subscription>;
@@ -65,7 +65,7 @@ impl Handler<GetSubscription> for Executor {
         use crate::schema::subscriptions::dsl::*;
 
         subscriptions
-            .find(query.0.to_string())
+            .find(query.0)
             .get_result(&self.conn)
     }
 }
@@ -108,7 +108,7 @@ impl Handler<UpdateSubscription> for Executor {
 }
 
 
-pub struct TransformSubscription(pub Uuid, pub Box<dyn FnOnce(&mut Subscription) + Send>);
+pub struct TransformSubscription(pub db::Id, pub Box<dyn FnOnce(&mut Subscription) + Send>);
 
 impl Message for TransformSubscription {
     type Result = diesel::QueryResult<Subscription>;
@@ -118,9 +118,9 @@ impl Handler<TransformSubscription> for Executor {
     type Result = <TransformSubscription as Message>::Result;
 
     fn handle(&mut self, query: TransformSubscription, ctx: &mut Self::Context) -> Self::Result {
-        let (uuid, transform) = (query.0, query.1);
+        let (id, transform) = (query.0, query.1);
 
-        self.handle(GetSubscription(uuid), ctx)
+        self.handle(GetSubscription(id), ctx)
             .and_then(move |mut subscription| {
                 transform(&mut subscription);
 

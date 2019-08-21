@@ -2,10 +2,10 @@ use actix::prelude::*;
 use actix_web::ResponseError;
 use futures::future::{self, Future};
 use std::fmt::{self, Display};
-use uuid::Uuid;
 
 use crate::models::*;
 use super::executor::*;
+use super::Id;
 
 
 #[derive(Debug)]
@@ -58,9 +58,9 @@ impl Helper {
         ))
     }
 
-    pub fn get_subscription(&mut self, uuid: Uuid) -> impl DatabaseFuture<Subscription> {
+    pub fn get_subscription(&mut self, id: Id) -> impl DatabaseFuture<Subscription> {
         self.map(self.executor.send(
-            GetSubscription(uuid)
+            GetSubscription(id)
         ))
     }
 
@@ -76,12 +76,12 @@ impl Helper {
         ))
     }
 
-    pub fn transform_subscription<F>(&mut self, uuid: Uuid, transform: F) -> impl DatabaseFuture<Subscription>
+    pub fn transform_subscription<F>(&mut self, id: Id, transform: F) -> impl DatabaseFuture<Subscription>
     where
         F: FnOnce(&mut Subscription) + Send + 'static
     {
         self.map(self.executor.send(
-            TransformSubscription(uuid, Box::new(transform))
+            TransformSubscription(id, Box::new(transform))
         ))
     }
 }

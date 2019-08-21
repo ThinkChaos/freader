@@ -3,6 +3,8 @@ use actix_web::{web, HttpResponse};
 use actix_web::dev::HttpServiceFactory;
 use serde::{Deserialize, Serialize};
 
+use crate::db;
+
 pub fn service() -> impl HttpServiceFactory {
     web::scope("/subscription")
         .route("/list", web::get().to_async(list))
@@ -18,7 +20,7 @@ struct ListResponse<'a> {
 
 #[derive(Debug, Serialize)]
 struct ListResponseItem<'a> {
-  id: &'a str,
+  id: &'a db::Id,
   title: &'a str,
 }
 
@@ -51,7 +53,7 @@ struct QuickAddQuery {
 #[derive(Debug, Serialize)]
 struct QuickAddResponse<'a> {
     #[serde(rename = "streamId")]
-    stream_id: &'a str,
+    stream_id: &'a db::Id,
     query: &'a str,
     #[serde(rename = "numResults")]
     num_results: u8,
@@ -77,7 +79,7 @@ fn quickadd(query: web::Query<QuickAddQuery>, data: web::Data<crate::Data>) -> i
 #[derive(Debug, Deserialize)]
 struct EditData {
     #[serde(rename="s")]
-    id: String,
+    id: db::Id,
     // #[serde(rename="ac")]
     // operation: Option<String>, // "edit"
     #[serde(rename="t")]
@@ -89,14 +91,9 @@ struct EditData {
 }
 
 fn edit(data: web::Data<crate::Data>, mut form: web::Form<EditData>) -> Box<dyn Future<Item = HttpResponse, Error = actix_web::Error>> {
-    let uuid = match form.id.parse() {
-        Ok(u) => u,
-        Err(_) => return Box::new(futures::future::ok(HttpResponse::BadRequest().body("Invalid subscription id"))),
-    };
-
     Box::new(data.db
         .clone()
-        .transform_subscription(uuid, move |subscription| {
+        .transform_subscription(form.id.clone(), move |subscription| {
             if form.title.is_some() {
                 subscription.title = form.title.take().unwrap();
             }

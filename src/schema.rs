@@ -1,13 +1,13 @@
 table! {
     _subscriptions_old (id) {
-        id -> Text,
+        id -> Binary,
         feed_url -> Text,
     }
 }
 
 table! {
     subscriptions (id) {
-        id -> Text,
+        id -> Binary,
         feed_url -> Text,
         title -> Text,
     }
