@@ -12,9 +12,11 @@ actix = "0.8"
 actix-http = "0.2"
 actix-service = "0.4"
 actix-web = "1.0"
+actix_web_async_compat = { git = "https://github.com/ThinkChaos/actix_web_async_compat.git", rev = "bad7efa0" }
 diesel = { version = "1.4", default-features = false, features = ["sqlite"] }
 env_logger = "0.6"
 futures = "0.1"
+futures_03 = { package = "futures-preview", version = "=0.3.0-alpha.18", default-features = false, features = ["compat"] }
 listenfd = { version = "0.3", optional = true }
 serde = "1.0"
 uuid = { version = "0.7", features = ["serde", "v4"] }
