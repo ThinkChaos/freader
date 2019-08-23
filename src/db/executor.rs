@@ -128,3 +128,189 @@ impl Handler<TransformSubscription> for Executor {
             })
     }
 }
+
+
+pub struct CreateCategory {
+    pub name: String,
+}
+
+impl Message for CreateCategory {
+    type Result = diesel::QueryResult<Category>;
+}
+
+impl Handler<CreateCategory> for Executor {
+    type Result = <CreateCategory as Message>::Result;
+
+    fn handle(&mut self, msg: CreateCategory, ctx: &mut Self::Context) -> Self::Result {
+        use crate::schema::categories::dsl::categories;
+
+        let id = db::Id::new();
+        let category = NewCategory {
+            id: &id,
+            name: &msg.name,
+        };
+
+        diesel::insert_into(categories)
+            .values(&category)
+            .execute(&self.conn)?;
+
+        self.handle(GetCategory(id), ctx)
+    }
+}
+
+
+pub struct GetCategory(pub db::Id);
+
+impl Message for GetCategory {
+    type Result = diesel::QueryResult<Category>;
+}
+
+impl Handler<GetCategory> for Executor {
+    type Result = <GetCategory as Message>::Result;
+
+    fn handle(&mut self, msg: GetCategory, _: &mut Self::Context) -> Self::Result {
+        use crate::schema::categories::dsl::*;
+
+        categories
+            .find(msg.0)
+            .get_result(&self.conn)
+    }
+}
+
+
+pub struct GetCategoryByName(pub String);
+
+impl Message for GetCategoryByName {
+    type Result = diesel::QueryResult<Option<Category>>;
+}
+
+impl Handler<GetCategoryByName> for Executor {
+    type Result = <GetCategoryByName as Message>::Result;
+
+    fn handle(&mut self, msg: GetCategoryByName, _: &mut Self::Context) -> Self::Result {
+        use crate::schema::categories::dsl::*;
+
+        let maybe_category = categories
+            .filter(name.eq(&msg.0))
+            .limit(1)
+            .load(&self.conn)?
+            .pop();
+
+        Ok(maybe_category)
+    }
+}
+
+
+pub struct GetOrCreateCategory {
+    pub name: String,
+}
+
+impl Message for GetOrCreateCategory {
+    type Result = diesel::QueryResult<Category>;
+}
+
+impl Handler<GetOrCreateCategory> for Executor {
+    type Result = <GetOrCreateCategory as Message>::Result;
+
+    fn handle(&mut self, msg: GetOrCreateCategory, ctx: &mut Self::Context) -> Self::Result {
+        self.handle(GetCategoryByName(msg.name.clone()), ctx)?
+            .map(|c| Ok(c))
+            .unwrap_or_else(|| self.handle(CreateCategory { name: msg.name }, ctx))
+    }
+}
+
+
+pub struct SubscriptionAddCategory {
+    pub subscription_id: db::Id,
+    pub category_name: String,
+}
+
+impl Message for SubscriptionAddCategory {
+    type Result = diesel::QueryResult<Category>;
+}
+
+impl Handler<SubscriptionAddCategory> for Executor {
+    type Result = <SubscriptionAddCategory as Message>::Result;
+
+    fn handle(&mut self, msg: SubscriptionAddCategory, ctx: &mut Self::Context) -> Self::Result {
+        use crate::schema::subscription_categories::dsl::subscription_categories;
+
+        let SubscriptionAddCategory { subscription_id, category_name } = msg;
+
+        let category = self.handle(GetOrCreateCategory { name: category_name }, ctx)?;
+
+        let subscription_category = NewSubscriptionCategory {
+            subscription_id: &subscription_id,
+            category_id: &category.id,
+        };
+
+        diesel::insert_or_ignore_into(subscription_categories)
+            .values(&subscription_category)
+            .execute(&self.conn)?;
+
+        Ok(category)
+    }
+}
+
+
+pub struct SubscriptionRemoveCategory {
+    pub subscription_id: db::Id,
+    pub category_name: String,
+}
+
+impl Message for SubscriptionRemoveCategory {
+    type Result = diesel::QueryResult<()>;
+}
+
+impl Handler<SubscriptionRemoveCategory> for Executor {
+    type Result = <SubscriptionRemoveCategory as Message>::Result;
+
+    fn handle(&mut self, msg: SubscriptionRemoveCategory, ctx: &mut Self::Context) -> Self::Result {
+        use crate::schema::subscription_categories::dsl::{subscription_categories, category_id};
+
+        let SubscriptionRemoveCategory { subscription_id, category_name } = msg;
+
+        let category = self.handle(GetCategoryByName(category_name), ctx)?;
+
+        if let Some(category) = category {
+            diesel::delete(subscription_categories.find((subscription_id, &category.id)))
+                .execute(&self.conn)?;
+
+            let n: i64 = subscription_categories
+                .filter(category_id.eq(category.id))
+                .count()
+                .get_result(&self.conn)?;
+
+            if n == 0 {
+                use crate::schema::categories::dsl::categories;
+
+                diesel::delete(categories.find(category.id))
+                    .execute(&self.conn)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+
+pub struct GetSubscriptionCategories(pub db::Id);
+
+impl Message for GetSubscriptionCategories {
+    type Result = diesel::QueryResult<Vec<Category>>;
+}
+
+impl Handler<GetSubscriptionCategories> for Executor {
+    type Result = <GetSubscriptionCategories as Message>::Result;
+
+    fn handle(&mut self, msg: GetSubscriptionCategories, _: &mut Self::Context) -> Self::Result {
+        use crate::schema::categories::dsl::*;
+        use crate::schema::subscription_categories::dsl::*;
+
+        subscription_categories
+            .filter(subscription_id.eq(&msg.0))
+            .inner_join(categories)
+            .select(categories::all_columns())
+            .load(&self.conn)
+    }
+}

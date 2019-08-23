@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use crate::db;
-use super::schema::subscriptions;
+use super::schema::*;
 
 
 #[derive(Debug, Serialize, Identifiable, AsChangeset, Queryable)]
@@ -17,4 +17,32 @@ pub struct NewSubscription<'a> {
     pub id: &'a db::Id,
     pub feed_url: &'a str,
     pub title: &'a str,
+}
+
+#[derive(Debug, Serialize, Identifiable, AsChangeset, Queryable)]
+#[table_name = "categories"]
+pub struct Category {
+    pub id: db::Id,
+    pub name: String,
+}
+
+#[derive(Debug, Insertable)]
+#[table_name = "categories"]
+pub struct NewCategory<'a> {
+    pub id: &'a db::Id,
+    pub name: &'a str,
+}
+
+#[derive(Debug, Serialize, AsChangeset, Queryable)]
+#[table_name = "subscription_categories"]
+pub struct SubscriptionCategory {
+    pub subscription_id: db::Id,
+    pub category_id: db::Id,
+}
+
+#[derive(Debug, Insertable)]
+#[table_name = "subscription_categories"]
+pub struct NewSubscriptionCategory<'a> {
+    pub subscription_id: &'a db::Id,
+    pub category_id: &'a db::Id,
 }

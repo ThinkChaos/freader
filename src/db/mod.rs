@@ -13,7 +13,7 @@ pub use executor::Executor;
 pub use helper::Helper;
 
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[derive(Hash, Eq, PartialEq)] // for diesel
 #[derive(AsExpression, FromSqlRow)]
 #[sql_type = "Binary"]

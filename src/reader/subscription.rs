@@ -5,6 +5,7 @@ use futures_03::{compat::Future01CompatExt, FutureExt, TryFutureExt};
 use serde::{Deserialize, Serialize};
 
 use crate::db;
+use crate::models::Category;
 
 pub fn service() -> impl HttpServiceFactory {
     web::scope("/subscription")
@@ -25,6 +26,12 @@ struct ListResponseItem<'a> {
   title: &'a str,
 }
 
+#[derive(Debug, Serialize)]
+struct ListResponseCategoryItem<'a> {
+    id: &'a db::Id,
+    label: &'a str,
+}
+
 #[async_compat]
 async fn list(data: web::Data<crate::Data>) -> actix_web::Result<HttpResponse> {
     let subscriptions = data.db
@@ -33,16 +40,39 @@ async fn list(data: web::Data<crate::Data>) -> actix_web::Result<HttpResponse> {
         .compat()
         .await?;
 
-    Ok(HttpResponse::Ok().json(
-        ListResponse {
-            subscriptions: &subscriptions
+    let mut categories: Vec<Vec<Category>> = Vec::with_capacity(subscriptions.len());
+    for subscription in &subscriptions {
+        categories.push(
+            data.db
+                .clone()
+                .get_subscription_categories(subscription.id)
+                .compat()
+                .await?
+        );
+    }
+
+    let subscriptions = subscriptions
+        .iter()
+        .zip(&categories)
+        .map(|(subscription, categories)| {
+            let categories = categories
                 .iter()
-                .map(|s| ListResponseItem {
-                    id: &s.id,
-                    title: &s.title,
-                }).collect::<Vec<_>>(),
-        }
-    ))
+                .map(|category|
+                    ListResponseCategoryItem {
+                        id: &category.id,
+                        label: &category.name,
+                    }
+                );
+
+            ListResponseItem {
+                id: &subscription.id,
+                title: &subscription.title,
+                categories: categories.collect(),
+            }
+        })
+        .collect::<Vec<_>>();
+
+    Ok(HttpResponse::Ok().json(ListResponse { subscriptions: &subscriptions }))
 }
 
 
@@ -96,13 +126,35 @@ struct EditData {
 #[async_compat]
 async fn edit(data: web::Data<crate::Data>, mut form: web::Form<EditData>) -> actix_web::Result<HttpResponse> {
     if form.title.is_some() {
+        let title = form.title.take().unwrap();
+
         data.db
             .clone()
-            .transform_subscription(form.id.clone(), move |subscription| {
-                subscription.title = form.title.take().unwrap();
+            .transform_subscription(form.id, move |subscription| {
+                subscription.title = title;
             })
             .compat()
             .await?;
+    }
+
+    if form.add_category != form.remove_category {
+        if form.add_category.is_some() {
+            let category = form.add_category.take().unwrap();
+
+            data.db.clone()
+                   .subscription_add_category(form.id, category)
+                   .compat()
+                   .await?;
+        }
+
+        if form.remove_category.is_some() {
+            let category = form.remove_category.take().unwrap();
+
+            data.db.clone()
+                   .subscription_remove_category(form.id, category)
+                   .compat()
+                   .await?;
+        }
     }
 
     Ok(HttpResponse::Ok().body("OK"))

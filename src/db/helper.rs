@@ -84,4 +84,31 @@ impl Helper {
             TransformSubscription(id, Box::new(transform))
         ))
     }
+
+    pub fn subscription_add_category(&mut self, subscription_id: Id, category: String) -> impl DatabaseFuture<Category>
+    {
+        self.map(self.executor.send(
+            SubscriptionAddCategory {
+                subscription_id,
+                category_name: category,
+            }
+        ))
+    }
+
+    pub fn subscription_remove_category(&mut self, subscription_id: Id, category: String) -> impl DatabaseFuture<()>
+    {
+        self.map(self.executor.send(
+            SubscriptionRemoveCategory {
+                subscription_id,
+                category_name: category,
+            }
+        ))
+    }
+
+    pub fn get_subscription_categories(&mut self, subscription_id: Id) -> impl DatabaseFuture<Vec<Category>>
+    {
+        self.map(self.executor.send(
+            GetSubscriptionCategories(subscription_id)
+        ))
+    }
 }
