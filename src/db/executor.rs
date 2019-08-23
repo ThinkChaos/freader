@@ -61,11 +61,11 @@ impl Message for GetSubscription {
 impl Handler<GetSubscription> for Executor {
     type Result = <GetSubscription as Message>::Result;
 
-    fn handle(&mut self, query: GetSubscription, _: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: GetSubscription, _: &mut Self::Context) -> Self::Result {
         use crate::schema::subscriptions::dsl::*;
 
         subscriptions
-            .find(query.0)
+            .find(msg.0)
             .get_result(&self.conn)
     }
 }
@@ -97,8 +97,8 @@ impl Message for UpdateSubscription {
 impl Handler<UpdateSubscription> for Executor {
     type Result = <UpdateSubscription as Message>::Result;
 
-    fn handle(&mut self, query: UpdateSubscription, _: &mut Self::Context) -> Self::Result {
-        let subscription = query.0;
+    fn handle(&mut self, msg: UpdateSubscription, _: &mut Self::Context) -> Self::Result {
+        let subscription = msg.0;
 
         diesel::update(&subscription)
             .set(&subscription)
@@ -117,15 +117,14 @@ impl Message for TransformSubscription {
 impl Handler<TransformSubscription> for Executor {
     type Result = <TransformSubscription as Message>::Result;
 
-    fn handle(&mut self, query: TransformSubscription, ctx: &mut Self::Context) -> Self::Result {
-        let (id, transform) = (query.0, query.1);
+    fn handle(&mut self, msg: TransformSubscription, ctx: &mut Self::Context) -> Self::Result {
+        let (id, transform) = (msg.0, msg.1);
 
-        self.handle(GetSubscription(id), ctx)
-            .and_then(move |mut subscription| {
-                transform(&mut subscription);
+        let mut subscription = self.handle(GetSubscription(id), ctx)?;
 
-                self.handle(UpdateSubscription(subscription), ctx)
-            })
+        transform(&mut subscription);
+
+        self.handle(UpdateSubscription(subscription), ctx)
     }
 }
 

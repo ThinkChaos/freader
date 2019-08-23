@@ -17,7 +17,7 @@ pub fn service() -> impl HttpServiceFactory {
 
 #[derive(Debug, Serialize)]
 struct ListResponse<'a> {
-    subscriptions: &'a [ListResponseItem<'a>],
+    subscriptions: &'a Vec<ListResponseItem<'a>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -70,7 +70,7 @@ async fn list(data: web::Data<crate::Data>) -> actix_web::Result<HttpResponse> {
                 categories: categories.collect(),
             }
         })
-        .collect::<Vec<_>>();
+        .collect();
 
     Ok(HttpResponse::Ok().json(ListResponse { subscriptions: &subscriptions }))
 }
