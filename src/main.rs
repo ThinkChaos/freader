@@ -11,12 +11,12 @@ mod reader;
 mod schema;
 mod utils;
 
-pub struct Data {
+pub struct AppData {
     secret: String,
     db: db::Helper,
 }
 
-impl Data {
+impl AppData {
     pub fn new(secret: &str, db_connspec: &str) -> Result<Self, diesel::result::ConnectionError> {
         // Test DB connection now
         drop(db::Executor::connect(db_connspec)?);
@@ -27,7 +27,7 @@ impl Data {
             db::Executor::connect(&db_connspec).expect("DB connection failed")
         });
 
-        Ok(Data {
+        Ok(AppData {
             secret: secret.to_owned(),
             db: db::Helper::new(db_pool),
         })
@@ -46,7 +46,7 @@ fn main() -> Result<(), std::io::Error> {
     let db_connspec = "file:ggrrss.sqlite";
 
     let data = web::Data::new(
-        Data::new(secret, db_connspec)
+        AppData::new(secret, db_connspec)
             .map_err(|err| {
                 log::error!("Databse connection error: {}", err);
                 err

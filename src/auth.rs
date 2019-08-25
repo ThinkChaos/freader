@@ -1,6 +1,8 @@
 use actix_web::{dev, http, web, HttpResponse};
 use serde::{Deserialize, Serialize};
 
+use crate::AppData;
+
 #[derive(Debug, Deserialize)]
 struct LoginData {
     // #[serde(rename = "accountType")]
@@ -28,7 +30,7 @@ pub fn service() -> impl dev::HttpServiceFactory {
     web::scope("/accounts").route("/ClientLogin", web::post().to(login))
 }
 
-fn login(data: web::Data<crate::Data>, form: web::Form<LoginData>) -> HttpResponse {
+fn login(data: web::Data<AppData>, form: web::Form<LoginData>) -> HttpResponse {
     if form.password == data.secret {
         HttpResponse::Ok().json(LoginResponse {
             token: form.into_inner().password,

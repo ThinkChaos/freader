@@ -4,6 +4,7 @@ use actix_web_async_compat::async_compat;
 use futures_03::{compat::Future01CompatExt, FutureExt, TryFutureExt};
 use serde::{Deserialize, Serialize};
 
+use crate::AppData;
 use crate::db;
 use crate::models::Category;
 
@@ -34,7 +35,7 @@ struct ListResponseCategoryItem<'a> {
 }
 
 #[async_compat]
-async fn list(data: web::Data<crate::Data>) -> actix_web::Result<HttpResponse> {
+async fn list(data: web::Data<AppData>) -> actix_web::Result<HttpResponse> {
     let mut db = data.db.clone();
 
     let subscriptions = db.get_subscriptions().compat().await?;
@@ -88,7 +89,7 @@ struct QuickAddResponse<'a> {
 
 #[async_compat]
 async fn quickadd(
-    data: web::Data<crate::Data>,
+    data: web::Data<AppData>,
     query: web::Query<QuickAddQuery>,
 ) -> actix_web::Result<HttpResponse> {
     let subscription = data
@@ -122,7 +123,7 @@ struct EditData {
 
 #[async_compat]
 async fn edit(
-    data: web::Data<crate::Data>,
+    data: web::Data<AppData>,
     mut form: web::Form<EditData>,
 ) -> actix_web::Result<HttpResponse> {
     let mut db = data.db.clone();

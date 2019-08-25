@@ -4,6 +4,8 @@ use actix_web::{Error, HttpResponse};
 use futures::future::{self, Either, FutureResult};
 use futures::Poll;
 
+use crate::AppData;
+
 pub struct RequireAuth;
 
 pub struct RequireAuthMiddleware<S> {
@@ -44,7 +46,7 @@ where
     }
 
     fn call(&mut self, req: ServiceRequest) -> Self::Future {
-        let app_data = req.app_data::<crate::Data>().unwrap();
+        let app_data = req.app_data::<AppData>().unwrap();
 
         let authorized = req
             .headers()
