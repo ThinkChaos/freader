@@ -1,8 +1,7 @@
 use serde::Serialize;
 
-use crate::db;
 use super::schema::*;
-
+use crate::db;
 
 #[derive(Debug, Serialize, Identifiable, AsChangeset, Queryable)]
 pub struct Subscription {

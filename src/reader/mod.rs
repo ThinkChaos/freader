@@ -1,9 +1,9 @@
-use actix_web::web;
 use actix_web::dev::HttpServiceFactory;
+use actix_web::web;
 
 mod subscription;
-mod utils;
 mod user_info;
+mod utils;
 
 pub fn service() -> impl HttpServiceFactory {
     web::scope("/reader/api/0")

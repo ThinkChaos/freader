@@ -1,11 +1,10 @@
-use actix_web::{web, HttpResponse, Result};
 use actix_web::dev::HttpServiceFactory;
+use actix_web::{web, HttpResponse, Result};
 use serde::Serialize;
 
 
 pub fn service() -> impl HttpServiceFactory {
-    web::resource("/user-info")
-        .route(web::get().to(get))
+    web::resource("/user-info").route(web::get().to(get))
 }
 
 
@@ -31,16 +30,14 @@ struct Response {
 
 
 fn get() -> Result<HttpResponse> {
-    Ok(HttpResponse::Ok().json(
-        Response {
-            user_id: "0",
-            username: "User",
-            profile_id: "0",
-            email: "noone@localhost",
-            is_blogger_user: false,
-            signup_time_sec: 0,
-            // public_user_name: "username",
-            is_multi_login_enabled: true,
-        }
-    ))
+    Ok(HttpResponse::Ok().json(Response {
+        user_id: "0",
+        username: "User",
+        profile_id: "0",
+        email: "noone@localhost",
+        is_blogger_user: false,
+        signup_time_sec: 0,
+        // public_user_name: "username",
+        is_multi_login_enabled: true,
+    }))
 }

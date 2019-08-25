@@ -1,9 +1,8 @@
 use actix_service::{Service, Transform};
-use actix_web::{Error, HttpResponse};
 use actix_web::dev::{ServiceRequest, ServiceResponse};
-use futures::Poll;
+use actix_web::{Error, HttpResponse};
 use futures::future::{self, Either, FutureResult};
-
+use futures::Poll;
 
 pub struct RequireAuth;
 
@@ -47,17 +46,18 @@ where
     fn call(&mut self, req: ServiceRequest) -> Self::Future {
         let app_data = req.app_data::<crate::Data>().unwrap();
 
-        let authorized = req.headers().get("Authorization")
+        let authorized = req
+            .headers()
+            .get("Authorization")
             .map(|val| val == &format!("GoogleLogin auth={}", app_data.secret))
             .unwrap_or(false);
 
         if authorized {
             Either::A(self.service.call(req))
-        }
-        else {
-            Either::B(future::ok(req.into_response(
-                HttpResponse::Unauthorized().finish().into_body()
-            )))
+        } else {
+            Either::B(future::ok(
+                req.into_response(HttpResponse::Unauthorized().finish().into_body()),
+            ))
         }
     }
 }

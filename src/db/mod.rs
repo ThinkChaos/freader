@@ -41,8 +41,8 @@ where
         let bytes = unsafe { &*slice_ptr };
 
         let uuid = uuid::Builder::from_slice(bytes)?
-                                 .set_version(uuid::Version::Random) // v4
-                                 .build(); // copies bytes from `string` which makes its use safe
+            .set_version(uuid::Version::Random) // v4
+            .build(); // copies bytes from `string` which makes its use safe
 
         Ok(Id(uuid))
     }

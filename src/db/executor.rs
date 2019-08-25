@@ -1,17 +1,17 @@
 use actix::prelude::*;
 use diesel::prelude::*;
 
-use crate::models::*;
 use crate::db;
+use crate::models::*;
 
 pub struct Executor {
     conn: SqliteConnection,
 }
 
 impl Executor {
-    pub fn new(connspec: &str) -> ConnectionResult<Self> {
+    pub fn connect(connspec: &str) -> ConnectionResult<Self> {
         Ok(Executor {
-            conn: SqliteConnection::establish(connspec)?
+            conn: SqliteConnection::establish(connspec)?,
         })
     }
 }
@@ -64,9 +64,7 @@ impl Handler<GetSubscription> for Executor {
     fn handle(&mut self, msg: GetSubscription, _: &mut Self::Context) -> Self::Result {
         use crate::schema::subscriptions::dsl::*;
 
-        subscriptions
-            .find(msg.0)
-            .get_result(&self.conn)
+        subscriptions.find(msg.0).get_result(&self.conn)
     }
 }
 
@@ -170,9 +168,7 @@ impl Handler<GetCategory> for Executor {
     fn handle(&mut self, msg: GetCategory, _: &mut Self::Context) -> Self::Result {
         use crate::schema::categories::dsl::*;
 
-        categories
-            .find(msg.0)
-            .get_result(&self.conn)
+        categories.find(msg.0).get_result(&self.conn)
     }
 }
 
@@ -234,9 +230,17 @@ impl Handler<SubscriptionAddCategory> for Executor {
     fn handle(&mut self, msg: SubscriptionAddCategory, ctx: &mut Self::Context) -> Self::Result {
         use crate::schema::subscription_categories::dsl::subscription_categories;
 
-        let SubscriptionAddCategory { subscription_id, category_name } = msg;
+        let SubscriptionAddCategory {
+            subscription_id,
+            category_name,
+        } = msg;
 
-        let category = self.handle(GetOrCreateCategory { name: category_name }, ctx)?;
+        let category = self.handle(
+            GetOrCreateCategory {
+                name: category_name,
+            },
+            ctx,
+        )?;
 
         let subscription_category = NewSubscriptionCategory {
             subscription_id: &subscription_id,
@@ -265,9 +269,12 @@ impl Handler<SubscriptionRemoveCategory> for Executor {
     type Result = <SubscriptionRemoveCategory as Message>::Result;
 
     fn handle(&mut self, msg: SubscriptionRemoveCategory, ctx: &mut Self::Context) -> Self::Result {
-        use crate::schema::subscription_categories::dsl::{subscription_categories, category_id};
+        use crate::schema::subscription_categories::dsl::{category_id, subscription_categories};
 
-        let SubscriptionRemoveCategory { subscription_id, category_name } = msg;
+        let SubscriptionRemoveCategory {
+            subscription_id,
+            category_name,
+        } = msg;
 
         let category = self.handle(GetCategoryByName(category_name), ctx)?;
 
@@ -283,8 +290,7 @@ impl Handler<SubscriptionRemoveCategory> for Executor {
             if n == 0 {
                 use crate::schema::categories::dsl::categories;
 
-                diesel::delete(categories.find(category.id))
-                    .execute(&self.conn)?;
+                diesel::delete(categories.find(category.id)).execute(&self.conn)?;
             }
         }
 

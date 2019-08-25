@@ -1,5 +1,5 @@
-use actix_web::{web, HttpResponse};
 use actix_web::dev::HttpServiceFactory;
+use actix_web::{web, HttpResponse};
 use actix_web_async_compat::async_compat;
 use futures_03::{compat::Future01CompatExt, FutureExt, TryFutureExt};
 use serde::{Deserialize, Serialize};
@@ -22,8 +22,9 @@ struct ListResponse<'a> {
 
 #[derive(Debug, Serialize)]
 struct ListResponseItem<'a> {
-  id: &'a db::Id,
-  title: &'a str,
+    id: &'a db::Id,
+    title: &'a str,
+    categories: Vec<ListResponseCategoryItem<'a>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -34,20 +35,16 @@ struct ListResponseCategoryItem<'a> {
 
 #[async_compat]
 async fn list(data: web::Data<crate::Data>) -> actix_web::Result<HttpResponse> {
-    let subscriptions = data.db
-        .clone()
-        .get_subscriptions()
-        .compat()
-        .await?;
+    let mut db = data.db.clone();
+
+    let subscriptions = db.get_subscriptions().compat().await?;
 
     let mut categories: Vec<Vec<Category>> = Vec::with_capacity(subscriptions.len());
     for subscription in &subscriptions {
         categories.push(
-            data.db
-                .clone()
-                .get_subscription_categories(subscription.id)
+            db.get_subscription_categories(subscription.id)
                 .compat()
-                .await?
+                .await?,
         );
     }
 
@@ -55,14 +52,10 @@ async fn list(data: web::Data<crate::Data>) -> actix_web::Result<HttpResponse> {
         .iter()
         .zip(&categories)
         .map(|(subscription, categories)| {
-            let categories = categories
-                .iter()
-                .map(|category|
-                    ListResponseCategoryItem {
-                        id: &category.id,
-                        label: &category.name,
-                    }
-                );
+            let categories = categories.iter().map(|category| ListResponseCategoryItem {
+                id: &category.id,
+                label: &category.name,
+            });
 
             ListResponseItem {
                 id: &subscription.id,
@@ -72,13 +65,15 @@ async fn list(data: web::Data<crate::Data>) -> actix_web::Result<HttpResponse> {
         })
         .collect();
 
-    Ok(HttpResponse::Ok().json(ListResponse { subscriptions: &subscriptions }))
+    Ok(HttpResponse::Ok().json(ListResponse {
+        subscriptions: &subscriptions,
+    }))
 }
 
 
 #[derive(Debug, Deserialize)]
 struct QuickAddQuery {
-    #[serde(rename="quickadd")]
+    #[serde(rename = "quickadd")]
     url: String,
 }
 
@@ -92,68 +87,71 @@ struct QuickAddResponse<'a> {
 }
 
 #[async_compat]
-async fn quickadd(query: web::Query<QuickAddQuery>, data: web::Data<crate::Data>) -> actix_web::Result<HttpResponse> {
-    let subscription = data.db
-        .clone() // FIXME
+async fn quickadd(
+    data: web::Data<crate::Data>,
+    query: web::Query<QuickAddQuery>,
+) -> actix_web::Result<HttpResponse> {
+    let subscription = data
+        .db
+        .clone()
         .create_subscription(query.url.clone())
         .compat()
         .await?;
 
-    Ok(HttpResponse::Ok().json(
-        QuickAddResponse {
-            query: &subscription.feed_url,
-            stream_id: &subscription.id,
-            num_results: 1,
-        }
-    ))
+    Ok(HttpResponse::Ok().json(QuickAddResponse {
+        query: &subscription.feed_url,
+        stream_id: &subscription.id,
+        num_results: 1,
+    }))
 }
 
 
 #[derive(Debug, Deserialize)]
 struct EditData {
-    #[serde(rename="s")]
+    #[serde(rename = "s")]
     id: db::Id,
     // #[serde(rename="ac")]
     // operation: Option<String>, // "edit"
-    #[serde(rename="t")]
+    #[serde(rename = "t")]
     title: Option<String>,
-    #[serde(rename="a")]
+    #[serde(rename = "a")]
     add_category: Option<String>,
-    #[serde(rename="r")]
+    #[serde(rename = "r")]
     remove_category: Option<String>,
 }
 
 #[async_compat]
-async fn edit(data: web::Data<crate::Data>, mut form: web::Form<EditData>) -> actix_web::Result<HttpResponse> {
+async fn edit(
+    data: web::Data<crate::Data>,
+    mut form: web::Form<EditData>,
+) -> actix_web::Result<HttpResponse> {
+    let mut db = data.db.clone();
+
     if form.title.is_some() {
         let title = form.title.take().unwrap();
 
-        data.db
-            .clone()
-            .transform_subscription(form.id, move |subscription| {
-                subscription.title = title;
-            })
-            .compat()
-            .await?;
+        db.transform_subscription(form.id, move |subscription| {
+            subscription.title = title;
+        })
+        .compat()
+        .await?;
     }
 
     if form.add_category != form.remove_category {
         if form.add_category.is_some() {
             let category = form.add_category.take().unwrap();
 
-            data.db.clone()
-                   .subscription_add_category(form.id, category)
-                   .compat()
-                   .await?;
+            db.subscription_add_category(form.id, category)
+                .compat()
+                .await?;
         }
 
         if form.remove_category.is_some() {
             let category = form.remove_category.take().unwrap();
 
-            data.db.clone()
-                   .subscription_remove_category(form.id, category)
-                   .compat()
-                   .await?;
+            db.subscription_remove_category(form.id, category)
+                .compat()
+                .await?;
         }
     }
 

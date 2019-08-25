@@ -25,15 +25,14 @@ struct LoginResponse {
 }
 
 pub fn service() -> impl dev::HttpServiceFactory {
-    web::scope("/accounts")
-        .route("/ClientLogin", web::post().to(login))
+    web::scope("/accounts").route("/ClientLogin", web::post().to(login))
 }
 
 fn login(data: web::Data<crate::Data>, form: web::Form<LoginData>) -> HttpResponse {
     if form.password == data.secret {
-        HttpResponse::Ok().json(
-            LoginResponse { token: form.into_inner().password }
-        )
+        HttpResponse::Ok().json(LoginResponse {
+            token: form.into_inner().password,
+        })
     } else {
         HttpResponse::Forbidden()
             .header(http::header::CONTENT_TYPE, "application/json")

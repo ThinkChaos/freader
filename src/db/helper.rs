@@ -3,10 +3,9 @@ use actix_web::ResponseError;
 use futures::future::{self, Future};
 use std::fmt::{self, Display};
 
-use crate::models::*;
 use super::executor::*;
 use super::Id;
-
+use crate::models::*;
 
 #[derive(Debug)]
 pub enum Error {
@@ -26,8 +25,8 @@ impl Display for Error {
 }
 
 
-pub trait DatabaseFuture<I>: Future<Item=I, Error = Error> {}
-impl<I, T: Future<Item=I, Error = Error>> DatabaseFuture<I> for T {}
+pub trait DatabaseFuture<I>: Future<Item = I, Error = Error> {}
+impl<I, T: Future<Item = I, Error = Error>> DatabaseFuture<I> for T {}
 
 
 #[derive(Clone)]
@@ -53,62 +52,70 @@ impl Helper {
     }
 
     pub fn create_subscription(&mut self, feed_url: String) -> impl DatabaseFuture<Subscription> {
-        self.map(self.executor.send(
-            CreateSubscription { feed_url: feed_url.clone(), title: feed_url }
-        ))
+        self.map(self.executor.send(CreateSubscription {
+            feed_url: feed_url.clone(),
+            title: feed_url,
+        }))
     }
 
     pub fn get_subscription(&mut self, id: Id) -> impl DatabaseFuture<Subscription> {
-        self.map(self.executor.send(
-            GetSubscription(id)
-        ))
+        self.map(self.executor.send(GetSubscription(id)))
     }
 
     pub fn get_subscriptions(&mut self) -> impl DatabaseFuture<Vec<Subscription>> {
-        self.map(self.executor.send(
-            GetSubscriptions
-        ))
+        self.map(self.executor.send(GetSubscriptions))
     }
 
-    pub fn update_subscription(&mut self, subscription: Subscription) -> impl DatabaseFuture<Subscription> {
-        self.map(self.executor.send(
-            UpdateSubscription(subscription)
-        ))
+    pub fn update_subscription(
+        &mut self,
+        subscription: Subscription,
+    ) -> impl DatabaseFuture<Subscription> {
+        self.map(self.executor.send(UpdateSubscription(subscription)))
     }
 
-    pub fn transform_subscription<F>(&mut self, id: Id, transform: F) -> impl DatabaseFuture<Subscription>
+    pub fn transform_subscription<F>(
+        &mut self,
+        id: Id,
+        transform: F,
+    ) -> impl DatabaseFuture<Subscription>
     where
-        F: FnOnce(&mut Subscription) + Send + 'static
+        F: FnOnce(&mut Subscription) + Send + 'static,
     {
-        self.map(self.executor.send(
-            TransformSubscription(id, Box::new(transform))
-        ))
+        self.map(
+            self.executor
+                .send(TransformSubscription(id, Box::new(transform))),
+        )
     }
 
-    pub fn subscription_add_category(&mut self, subscription_id: Id, category: String) -> impl DatabaseFuture<Category>
-    {
-        self.map(self.executor.send(
-            SubscriptionAddCategory {
-                subscription_id,
-                category_name: category,
-            }
-        ))
+    pub fn subscription_add_category(
+        &mut self,
+        subscription_id: Id,
+        category: String,
+    ) -> impl DatabaseFuture<Category> {
+        self.map(self.executor.send(SubscriptionAddCategory {
+            subscription_id,
+            category_name: category,
+        }))
     }
 
-    pub fn subscription_remove_category(&mut self, subscription_id: Id, category: String) -> impl DatabaseFuture<()>
-    {
-        self.map(self.executor.send(
-            SubscriptionRemoveCategory {
-                subscription_id,
-                category_name: category,
-            }
-        ))
+    pub fn subscription_remove_category(
+        &mut self,
+        subscription_id: Id,
+        category: String,
+    ) -> impl DatabaseFuture<()> {
+        self.map(self.executor.send(SubscriptionRemoveCategory {
+            subscription_id,
+            category_name: category,
+        }))
     }
 
-    pub fn get_subscription_categories(&mut self, subscription_id: Id) -> impl DatabaseFuture<Vec<Category>>
-    {
-        self.map(self.executor.send(
-            GetSubscriptionCategories(subscription_id)
-        ))
+    pub fn get_subscription_categories(
+        &mut self,
+        subscription_id: Id,
+    ) -> impl DatabaseFuture<Vec<Category>> {
+        self.map(
+            self.executor
+                .send(GetSubscriptionCategories(subscription_id)),
+        )
     }
 }
