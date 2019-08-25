@@ -51,7 +51,7 @@ where
         let authorized = req
             .headers()
             .get("Authorization")
-            .map(|val| val == &format!("GoogleLogin auth={}", app_data.secret))
+            .map(|val| val == &format!("GoogleLogin auth={}", app_data.cfg.auth_password))
             .unwrap_or(false);
 
         if authorized {

@@ -31,7 +31,7 @@ pub fn service() -> impl dev::HttpServiceFactory {
 }
 
 fn login(data: web::Data<AppData>, form: web::Form<LoginData>) -> HttpResponse {
-    if form.password == data.secret {
+    if form.email == data.cfg.auth_username && form.password == data.cfg.auth_password {
         HttpResponse::Ok().json(LoginResponse {
             token: form.into_inner().password,
         })
