@@ -2,6 +2,8 @@ use actix_web::dev::HttpServiceFactory;
 use actix_web::{web, HttpResponse, Result};
 use serde::Serialize;
 
+use crate::prelude::*;
+
 
 pub fn service() -> impl HttpServiceFactory {
     web::resource("/user-info").route(web::get().to(get))
@@ -9,32 +11,32 @@ pub fn service() -> impl HttpServiceFactory {
 
 
 #[derive(Debug, Serialize)]
-struct Response {
+struct Response<'a> {
     #[serde(rename = "userId")]
-    user_id: &'static str,
+    user_id: &'a str,
     #[serde(rename = "userName")]
-    username: &'static str,
+    username: &'a str,
     #[serde(rename = "userProfileId")]
-    profile_id: &'static str,
+    profile_id: &'a str,
     #[serde(rename = "userEmail")]
-    email: &'static str,
+    email: &'a str,
     #[serde(rename = "isBloggerUser")]
     is_blogger_user: bool,
     #[serde(rename = "signupTimeSec")]
     signup_time_sec: u8,
     // #[serde(rename = "publicUserName")]
-    // public_user_name: &'static str,
+    // public_user_name: &'a str,
     #[serde(rename = "isMultiLoginEnabled")]
     is_multi_login_enabled: bool,
 }
 
 
-fn get() -> Result<HttpResponse> {
+fn get(data: web::Data<AppData>) -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().json(Response {
         user_id: "0",
-        username: "User",
+        username: &data.cfg.auth_username,
         profile_id: "0",
-        email: "noone@localhost",
+        email: &format!("{}@{}", data.cfg.auth_username, data.cfg.http_host),
         is_blogger_user: false,
         signup_time_sec: 0,
         // public_user_name: "username",
