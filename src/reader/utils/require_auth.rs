@@ -3,8 +3,8 @@ use actix_web::{http::header, HttpResponse};
 use futures::future::{self, Either, FutureResult};
 use futures::Poll;
 
-use crate::AppData;
 use crate::utils::HttpService;
+use crate::AppData;
 
 pub struct RequireAuth;
 

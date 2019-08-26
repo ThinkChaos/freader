@@ -39,38 +39,36 @@ impl Helper {
         Helper { executor }
     }
 
-    fn map<F, M>(&mut self, future: F) -> impl DatabaseFuture<M>
+    fn map<F, M>(future: F) -> impl DatabaseFuture<M>
     where
         F: Future<Item = Result<M, diesel::result::Error>, Error = MailboxError>,
     {
-        future
-            .map_err(Error::MailboxError)
-            .and_then(|r| match r {
-                Ok(r) => future::ok(r),
-                Err(e) => future::err(Error::DatabaseError(e)),
-            })
+        future.map_err(Error::MailboxError).and_then(|r| match r {
+            Ok(r) => future::ok(r),
+            Err(e) => future::err(Error::DatabaseError(e)),
+        })
     }
 
     pub fn create_subscription(&mut self, feed_url: String) -> impl DatabaseFuture<Subscription> {
-        self.map(self.executor.send(CreateSubscription {
+        Self::map(self.executor.send(CreateSubscription {
             feed_url: feed_url.clone(),
             title: feed_url,
         }))
     }
 
     pub fn get_subscription(&mut self, id: Id) -> impl DatabaseFuture<Subscription> {
-        self.map(self.executor.send(GetSubscription(id)))
+        Self::map(self.executor.send(GetSubscription(id)))
     }
 
     pub fn get_subscriptions(&mut self) -> impl DatabaseFuture<Vec<Subscription>> {
-        self.map(self.executor.send(GetSubscriptions))
+        Self::map(self.executor.send(GetSubscriptions))
     }
 
     pub fn update_subscription(
         &mut self,
         subscription: Subscription,
     ) -> impl DatabaseFuture<Subscription> {
-        self.map(self.executor.send(UpdateSubscription(subscription)))
+        Self::map(self.executor.send(UpdateSubscription(subscription)))
     }
 
     pub fn transform_subscription<F>(
@@ -81,7 +79,7 @@ impl Helper {
     where
         F: FnOnce(&mut Subscription) + Send + 'static,
     {
-        self.map(
+        Self::map(
             self.executor
                 .send(TransformSubscription(id, Box::new(transform))),
         )
@@ -92,7 +90,7 @@ impl Helper {
         subscription_id: Id,
         category: String,
     ) -> impl DatabaseFuture<Category> {
-        self.map(self.executor.send(SubscriptionAddCategory {
+        Self::map(self.executor.send(SubscriptionAddCategory {
             subscription_id,
             category_name: category,
         }))
@@ -103,7 +101,7 @@ impl Helper {
         subscription_id: Id,
         category: String,
     ) -> impl DatabaseFuture<()> {
-        self.map(self.executor.send(SubscriptionRemoveCategory {
+        Self::map(self.executor.send(SubscriptionRemoveCategory {
             subscription_id,
             category_name: category,
         }))
@@ -113,7 +111,7 @@ impl Helper {
         &mut self,
         subscription_id: Id,
     ) -> impl DatabaseFuture<Vec<Category>> {
-        self.map(
+        Self::map(
             self.executor
                 .send(GetSubscriptionCategories(subscription_id)),
         )
