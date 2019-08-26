@@ -1,4 +1,4 @@
-use actix_web::{dev, http, web, HttpResponse};
+use actix_web::{dev, web, HttpResponse};
 use serde::{Deserialize, Serialize};
 
 use crate::AppData;
@@ -36,8 +36,6 @@ fn login(data: web::Data<AppData>, form: web::Form<LoginData>) -> HttpResponse {
             token: form.into_inner().password,
         })
     } else {
-        HttpResponse::Forbidden()
-            .header(http::header::CONTENT_TYPE, "application/json")
-            .body(r#"{Error: "BadAuthentication"}"#)
+        HttpResponse::Forbidden().body("Error=BadAuthentication")
     }
 }
