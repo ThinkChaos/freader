@@ -1,10 +1,10 @@
 use actix_service::{Service, Transform};
-use actix_web::dev::{ServiceRequest, ServiceResponse};
-use actix_web::{http::header, Error, HttpResponse};
+use actix_web::{http::header, HttpResponse};
 use futures::future::{self, Either, FutureResult};
 use futures::Poll;
 
 use crate::AppData;
+use crate::utils::HttpService;
 
 pub struct RequireAuth;
 
@@ -14,16 +14,12 @@ pub struct RequireAuthMiddleware<S> {
 
 impl<S> Transform<S> for RequireAuth
 where
-    S: Service<
-        Request = ServiceRequest,
-        Response = ServiceResponse<actix_http::body::Body>,
-        Error = Error,
-    >,
+    S: HttpService,
     S::Future: 'static,
 {
-    type Request = ServiceRequest;
-    type Response = ServiceResponse<actix_http::body::Body>;
-    type Error = Error;
+    type Request = <S as Service>::Request;
+    type Response = <S as Service>::Response;
+    type Error = <S as Service>::Error;
     type InitError = ();
     type Transform = RequireAuthMiddleware<S>;
     type Future = FutureResult<Self::Transform, Self::InitError>;
@@ -35,23 +31,19 @@ where
 
 impl<S> Service for RequireAuthMiddleware<S>
 where
-    S: Service<
-        Request = ServiceRequest,
-        Response = ServiceResponse<actix_http::body::Body>,
-        Error = Error,
-    >,
+    S: HttpService,
     S::Future: 'static,
 {
-    type Request = ServiceRequest;
-    type Response = ServiceResponse<actix_http::body::Body>;
-    type Error = Error;
+    type Request = <S as Service>::Request;
+    type Response = <S as Service>::Response;
+    type Error = <S as Service>::Error;
     type Future = Either<S::Future, FutureResult<Self::Response, Self::Error>>;
 
     fn poll_ready(&mut self) -> Poll<(), Self::Error> {
         self.service.poll_ready()
     }
 
-    fn call(&mut self, req: ServiceRequest) -> Self::Future {
+    fn call(&mut self, req: Self::Request) -> Self::Future {
         let app_data = req.app_data::<AppData>().unwrap();
 
         let authorized = req

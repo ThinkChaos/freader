@@ -4,9 +4,8 @@ use actix_web_async_compat::async_compat;
 use futures_03::{compat::Future01CompatExt, FutureExt, TryFutureExt};
 use serde::{Deserialize, Serialize};
 
-use crate::db;
 use crate::models::Category;
-use crate::AppData;
+use crate::prelude::*;
 
 pub fn service() -> impl HttpServiceFactory {
     web::scope("/subscription")

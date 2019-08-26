@@ -1,40 +1,21 @@
+#![feature(trait_alias)]
+
 #[macro_use]
 extern crate diesel;
 
-use actix::prelude::*;
 use actix_web::{middleware, web, App, HttpServer};
 
-mod auth;
-mod config;
-mod db;
-mod models;
-mod reader;
-mod schema;
-mod utils;
+pub mod appdata;
+pub mod auth;
+pub mod config;
+pub mod db;
+pub mod models;
+pub mod prelude;
+pub mod reader;
+pub mod schema;
+pub mod utils;
 
-use config::Config;
-
-pub struct AppData {
-    cfg: Config,
-    db: db::Helper,
-}
-
-impl AppData {
-    pub fn new(cfg: Config) -> Result<Self, diesel::result::ConnectionError> {
-        // Test DB connection now
-        drop(db::Executor::connect(&cfg.sqlite_db)?);
-
-        let sqlite_db = cfg.sqlite_db.clone();
-        let db_pool = SyncArbiter::start(2, move || {
-            db::Executor::connect(&sqlite_db).expect("DB connection failed")
-        });
-
-        Ok(AppData {
-            cfg,
-            db: db::Helper::new(db_pool),
-        })
-    }
-}
+use prelude::*;
 
 fn main() -> Result<(), std::io::Error> {
     if let Err(err) = dotenv::from_filename("ggrrss.env") {
