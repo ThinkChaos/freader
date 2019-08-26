@@ -20,6 +20,7 @@ pub use helper::Helper;
 pub struct Id(Uuid);
 
 impl Id {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Id(Uuid::new_v4())
     }

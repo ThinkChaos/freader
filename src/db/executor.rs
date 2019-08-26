@@ -209,7 +209,7 @@ impl Handler<GetOrCreateCategory> for Executor {
 
     fn handle(&mut self, msg: GetOrCreateCategory, ctx: &mut Self::Context) -> Self::Result {
         self.handle(GetCategoryByName(msg.name.clone()), ctx)?
-            .map(|c| Ok(c))
+            .map(Ok)
             .unwrap_or_else(|| self.handle(CreateCategory { name: msg.name }, ctx))
     }
 }

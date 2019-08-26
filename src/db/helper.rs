@@ -44,7 +44,7 @@ impl Helper {
         F: Future<Item = Result<M, diesel::result::Error>, Error = MailboxError>,
     {
         future
-            .map_err(|e| Error::MailboxError(e))
+            .map_err(Error::MailboxError)
             .and_then(|r| match r {
                 Ok(r) => future::ok(r),
                 Err(e) => future::err(Error::DatabaseError(e)),
