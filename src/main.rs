@@ -18,7 +18,7 @@ pub mod utils;
 use prelude::*;
 
 fn main() -> Result<(), std::io::Error> {
-    if let Err(err) = dotenv::from_filename("ggrrss.env") {
+    if let Err(err) = dotenv::from_filename("freader.env") {
         eprintln!("{}", err);
         std::process::exit(1);
     }
@@ -33,7 +33,7 @@ fn main() -> Result<(), std::io::Error> {
         }
     };
 
-    let sys = actix::System::new("ggrrss");
+    let sys = actix::System::new("freader");
 
     let data = web::Data::new(AppData::new(cfg.clone()).map_err(|err| {
         log::error!("Database connection error: {}", err);

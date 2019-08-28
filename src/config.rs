@@ -22,7 +22,7 @@ impl Config {
             auth_username: Self::var("USERNAME")?,
             auth_password: Self::var("PASSWORD")?,
 
-            sqlite_db: Self::var_or("SQLITE_DB", "file:ggrrss.sqlite")?,
+            sqlite_db: Self::var_or("SQLITE_DB", "file:freader.sqlite")?,
         })
     }
 
@@ -32,7 +32,7 @@ impl Config {
         V: FromStr,
         V::Err: Display,
     {
-        let key = format!("GGRRSS_{}", key);
+        let key = format!("FREADER_{}", key);
         match std::env::var(&key) {
             Ok(val) => val
                 .parse()
