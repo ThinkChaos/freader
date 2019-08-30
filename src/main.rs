@@ -35,10 +35,13 @@ fn main() -> Result<(), std::io::Error> {
 
     let sys = actix::System::new("freader");
 
-    let data = web::Data::new(AppData::new(cfg.clone()).map_err(|err| {
-        log::error!("Database connection error: {}", err);
-        std::process::exit(2);
-    }));
+    let data = web::Data::new(match AppData::new(cfg.clone()) {
+        Ok(data) => data,
+        Err(err) => {
+            log::error!("Database connection error: {}", err);
+            std::process::exit(2);
+        }
+    });
 
     // Start the HTTP server
     let mut server = HttpServer::new(move || {
