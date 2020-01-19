@@ -1,7 +1,5 @@
 use actix_web::dev::HttpServiceFactory;
 use actix_web::{web, HttpResponse};
-use actix_web_async_compat::async_compat;
-use futures_03::{compat::Future01CompatExt, FutureExt, TryFutureExt};
 use serde::{Deserialize, Serialize};
 
 use crate::models::Category;
@@ -9,9 +7,9 @@ use crate::prelude::*;
 
 pub fn service() -> impl HttpServiceFactory {
     web::scope("/subscription")
-        .route("/list", web::get().to_async(list))
-        .route("/quickadd", web::post().to_async(quickadd))
-        .route("/edit", web::post().to_async(edit))
+        .route("/list", web::get().to(list))
+        .route("/quickadd", web::post().to(quickadd))
+        .route("/edit", web::post().to(edit))
 }
 
 
@@ -33,19 +31,14 @@ struct ListResponseCategoryItem<'a> {
     label: &'a str,
 }
 
-#[async_compat]
 async fn list(data: web::Data<AppData>) -> actix_web::Result<HttpResponse> {
     let mut db = data.db.clone();
 
-    let subscriptions = db.get_subscriptions().compat().await?;
+    let subscriptions = db.get_subscriptions().await?;
 
     let mut categories: Vec<Vec<Category>> = Vec::with_capacity(subscriptions.len());
     for subscription in &subscriptions {
-        categories.push(
-            db.get_subscription_categories(subscription.id)
-                .compat()
-                .await?,
-        );
+        categories.push(db.get_subscription_categories(subscription.id).await?);
     }
 
     let subscriptions = subscriptions
@@ -86,7 +79,6 @@ struct QuickAddResponse<'a> {
     num_results: u8,
 }
 
-#[async_compat]
 async fn quickadd(
     data: web::Data<AppData>,
     query: web::Query<QuickAddQuery>,
@@ -95,7 +87,6 @@ async fn quickadd(
         .db
         .clone()
         .create_subscription(query.url.clone())
-        .compat()
         .await?;
 
     Ok(HttpResponse::Ok().json(QuickAddResponse {
@@ -120,7 +111,6 @@ struct EditData {
     remove_category: Option<String>,
 }
 
-#[async_compat]
 async fn edit(
     data: web::Data<AppData>,
     mut form: web::Form<EditData>,
@@ -133,7 +123,6 @@ async fn edit(
         db.transform_subscription(form.id, move |subscription| {
             subscription.title = title;
         })
-        .compat()
         .await?;
     }
 
@@ -141,17 +130,13 @@ async fn edit(
         if form.add_category.is_some() {
             let category = form.add_category.take().unwrap();
 
-            db.subscription_add_category(form.id, category)
-                .compat()
-                .await?;
+            db.subscription_add_category(form.id, category).await?;
         }
 
         if form.remove_category.is_some() {
             let category = form.remove_category.take().unwrap();
 
-            db.subscription_remove_category(form.id, category)
-                .compat()
-                .await?;
+            db.subscription_remove_category(form.id, category).await?;
         }
     }
 

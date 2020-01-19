@@ -1,5 +1,6 @@
 use actix_web::dev::HttpServiceFactory;
-use actix_web::{web, HttpResponse, Result};
+use actix_web::{web, HttpResponse};
+use futures::future;
 use serde::Serialize;
 
 use crate::prelude::*;
@@ -31,8 +32,8 @@ struct Response<'a> {
 }
 
 
-fn get(data: web::Data<AppData>) -> Result<HttpResponse> {
-    Ok(HttpResponse::Ok().json(Response {
+fn get(data: web::Data<AppData>) -> future::Ready<HttpResponse> {
+    future::ready(HttpResponse::Ok().json(Response {
         user_id: "0",
         username: &data.cfg.auth_username,
         profile_id: "0",

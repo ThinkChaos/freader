@@ -1,7 +1,9 @@
 use actix_service::{Service, Transform};
 use actix_web::{http::header, HttpResponse};
-use futures::future::{self, Either, FutureResult};
-use futures::Poll;
+use futures::future::{self, Either, Ready};
+use std::future::Future;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 use crate::utils::HttpService;
 use crate::AppData;
@@ -22,7 +24,7 @@ where
     type Error = <S as Service>::Error;
     type InitError = ();
     type Transform = RequireAuthMiddleware<S>;
-    type Future = FutureResult<Self::Transform, Self::InitError>;
+    type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
         future::ok(RequireAuthMiddleware { service })
@@ -32,15 +34,16 @@ where
 impl<S> Service for RequireAuthMiddleware<S>
 where
     S: HttpService,
-    S::Future: 'static,
+    S::Future: 'static + Sized,
 {
     type Request = <S as Service>::Request;
     type Response = <S as Service>::Response;
     type Error = <S as Service>::Error;
-    type Future = Either<S::Future, FutureResult<Self::Response, Self::Error>>;
+    type Future =
+        Either<S::Future, Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>>;
 
-    fn poll_ready(&mut self) -> Poll<(), Self::Error> {
-        self.service.poll_ready()
+    fn poll_ready(&mut self, ctx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.service.poll_ready(ctx)
     }
 
     fn call(&mut self, req: Self::Request) -> Self::Future {
@@ -53,25 +56,25 @@ where
             .unwrap_or(false);
 
         if authorized {
-            Either::A(self.service.call(req))
-        } else {
-            let json_content_type = req
-                .headers()
-                .get(header::CONTENT_TYPE)
-                .map(|val| val == "application/json")
-                .unwrap_or(false);
-
-            let json_output_query = req.query_string().contains("output=json");
-
-            let response = if json_content_type || json_output_query {
-                HttpResponse::Unauthorized()
-                    .content_type("application/json")
-                    .body(r#"{"error":"Unauthorized"}"#)
-            } else {
-                HttpResponse::Unauthorized().body("Unauthorized")
-            };
-
-            Either::B(future::ok(req.into_response(response)))
+            return Either::Left(self.service.call(req));
         }
+
+        let json_content_type = req
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .map(|val| val == "application/json")
+            .unwrap_or(false);
+
+        let json_output_query = req.query_string().contains("output=json");
+
+        let response = if json_content_type || json_output_query {
+            HttpResponse::Unauthorized()
+                .content_type("application/json")
+                .body(r#"{"error":"Unauthorized"}"#)
+        } else {
+            HttpResponse::Unauthorized().body("Unauthorized")
+        };
+
+        Either::Right(Box::pin(future::ok(req.into_response(response))))
     }
 }

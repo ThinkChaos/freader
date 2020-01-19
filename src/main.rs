@@ -17,7 +17,8 @@ pub mod utils;
 
 use prelude::*;
 
-fn main() -> Result<(), std::io::Error> {
+#[actix_rt::main]
+async fn main() -> std::io::Result<()> {
     if let Err(err) = dotenv::from_filename("freader.env") {
         eprintln!("{}", err);
         std::process::exit(1);
@@ -33,8 +34,6 @@ fn main() -> Result<(), std::io::Error> {
         }
     };
 
-    let sys = actix::System::new("freader");
-
     let data = web::Data::new(match AppData::new(cfg.clone()) {
         Ok(data) => data,
         Err(err) => {
@@ -46,7 +45,7 @@ fn main() -> Result<(), std::io::Error> {
     // Start the HTTP server
     let mut server = HttpServer::new(move || {
         App::new()
-            .register_data(data.clone())
+            .app_data(data.clone())
             .wrap(middleware::Compress::default())
             .wrap(middleware::Logger::default())
             .service(auth::service())
@@ -83,7 +82,5 @@ fn main() -> Result<(), std::io::Error> {
         log::info!("Listening on: {}://{}", scheme, addr);
     }
 
-    server.start();
-
-    sys.run()
+    server.run().await
 }

@@ -1,7 +1,8 @@
 use actix::prelude::*;
 use actix_web::ResponseError;
-use futures::future::{self, Future};
+use futures::future::{self, TryFutureExt};
 use std::fmt::{self, Display};
+use std::future::Future;
 
 use super::executor::*;
 use super::Id;
@@ -25,8 +26,8 @@ impl Display for Error {
 }
 
 
-pub trait DatabaseFuture<I>: Future<Item = I, Error = Error> {}
-impl<I, T: Future<Item = I, Error = Error>> DatabaseFuture<I> for T {}
+pub trait DatabaseFuture<I>: Future<Output = Result<I, Error>> {}
+impl<I, T: Future<Output = Result<I, Error>>> DatabaseFuture<I> for T {}
 
 
 #[derive(Clone)]
@@ -41,7 +42,7 @@ impl Helper {
 
     fn map<F, M>(future: F) -> impl DatabaseFuture<M>
     where
-        F: Future<Item = Result<M, diesel::result::Error>, Error = MailboxError>,
+        F: Future<Output = Result<diesel::QueryResult<M>, MailboxError>>,
     {
         future.map_err(Error::MailboxError).and_then(|r| match r {
             Ok(r) => future::ok(r),
