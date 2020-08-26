@@ -14,7 +14,6 @@ pub struct Subscription {
 #[derive(Debug, Insertable)]
 #[table_name = "subscriptions"]
 pub struct NewSubscription<'a> {
-    pub id: &'a db::Id,
     pub feed_url: &'a str,
     pub title: &'a str,
     pub site_url: Option<&'a str>,
@@ -30,7 +29,6 @@ pub struct Category {
 #[derive(Debug, Insertable)]
 #[table_name = "categories"]
 pub struct NewCategory<'a> {
-    pub id: &'a db::Id,
     pub name: &'a str,
 }
 

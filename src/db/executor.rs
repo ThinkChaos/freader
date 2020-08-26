@@ -34,22 +34,22 @@ impl Message for CreateSubscription {
 impl Handler<CreateSubscription> for Executor {
     type Result = <CreateSubscription as Message>::Result;
 
-    fn handle(&mut self, msg: CreateSubscription, ctx: &mut Self::Context) -> Self::Result {
-        use crate::schema::subscriptions::dsl::subscriptions;
-
-        let id = db::Id::new();
+    fn handle(&mut self, msg: CreateSubscription, _: &mut Self::Context) -> Self::Result {
         let subscription = NewSubscription {
-            id: &id,
             feed_url: &msg.feed_url,
             title: &msg.title,
             site_url: msg.site_url.as_ref().map(String::as_str),
         };
 
-        diesel::insert_into(subscriptions)
-            .values(&subscription)
-            .execute(&self.conn)?;
+        self.conn.transaction(|| {
+            use crate::schema::subscriptions::dsl::*;
 
-        self.handle(GetSubscription(id), ctx)
+            diesel::insert_into(subscriptions)
+                .values(&subscription)
+                .execute(&self.conn)?;
+
+            subscriptions.order(id.desc()).first(&self.conn)
+        })
     }
 }
 
@@ -140,20 +140,18 @@ impl Message for CreateCategory {
 impl Handler<CreateCategory> for Executor {
     type Result = <CreateCategory as Message>::Result;
 
-    fn handle(&mut self, msg: CreateCategory, ctx: &mut Self::Context) -> Self::Result {
-        use crate::schema::categories::dsl::categories;
+    fn handle(&mut self, msg: CreateCategory, _: &mut Self::Context) -> Self::Result {
+        let category = NewCategory { name: &msg.name };
 
-        let id = db::Id::new();
-        let category = NewCategory {
-            id: &id,
-            name: &msg.name,
-        };
+        self.conn.transaction(|| {
+            use crate::schema::categories::dsl::*;
 
-        diesel::insert_into(categories)
-            .values(&category)
-            .execute(&self.conn)?;
+            diesel::insert_into(categories)
+                .values(&category)
+                .execute(&self.conn)?;
 
-        self.handle(GetCategory(id), ctx)
+            categories.order(id.desc()).first(&self.conn)
+        })
     }
 }
 
