@@ -8,6 +8,7 @@ pub struct Subscription {
     pub id: db::Id,
     pub feed_url: String,
     pub title: String,
+    pub site_url: Option<String>,
 }
 
 #[derive(Debug, Insertable)]
@@ -16,6 +17,7 @@ pub struct NewSubscription<'a> {
     pub id: &'a db::Id,
     pub feed_url: &'a str,
     pub title: &'a str,
+    pub site_url: Option<&'a str>,
 }
 
 #[derive(Debug, Serialize, Identifiable, AsChangeset, Queryable)]

@@ -24,6 +24,7 @@ impl Actor for Executor {
 pub struct CreateSubscription {
     pub feed_url: String,
     pub title: String,
+    pub site_url: Option<String>,
 }
 
 impl Message for CreateSubscription {
@@ -41,6 +42,7 @@ impl Handler<CreateSubscription> for Executor {
             id: &id,
             feed_url: &msg.feed_url,
             title: &msg.title,
+            site_url: msg.site_url.as_ref().map(String::as_str),
         };
 
         diesel::insert_into(subscriptions)

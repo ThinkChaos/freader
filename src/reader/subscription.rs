@@ -1,5 +1,6 @@
 use actix_web::dev::HttpServiceFactory;
 use actix_web::{web, HttpResponse};
+use futures::TryFutureExt;
 use serde::{Deserialize, Serialize};
 
 use crate::models::Category;
@@ -22,6 +23,8 @@ struct ListResponse<'a> {
 struct ListResponseItem<'a> {
     id: &'a db::Id,
     title: &'a str,
+    #[serde(rename = "htmlUrl", skip_serializing_if = "Option::is_none")]
+    site_url: &'a Option<String>,
     categories: Vec<ListResponseCategoryItem<'a>>,
 }
 
@@ -53,6 +56,7 @@ async fn list(data: web::Data<AppData>) -> actix_web::Result<HttpResponse> {
             ListResponseItem {
                 id: &subscription.id,
                 title: &subscription.title,
+                site_url: &subscription.site_url,
                 categories: categories.collect(),
             }
         })
@@ -79,14 +83,62 @@ struct QuickAddResponse<'a> {
     num_results: u8,
 }
 
+#[derive(Debug, Serialize)]
+struct QuickAddErrorResponse<'a> {
+    query: &'a str,
+    #[serde(rename = "numResults")]
+    num_results: u8,
+    error: &'a str,
+}
+
 async fn quickadd(
     data: web::Data<AppData>,
     query: web::Query<QuickAddQuery>,
 ) -> actix_web::Result<HttpResponse> {
+    let feed_bytes = reqwest::get(&query.url)
+        .and_then(|r| r.bytes())
+        .await
+        .map_err(|e| {
+            log::error!("{}", e);
+            HttpResponse::Ok().json(QuickAddErrorResponse {
+                query: &query.url,
+                num_results: 0,
+                error: "Could not fetch feed",
+            })
+        })?;
+
+    let feed = feed_rs::parser::parse(feed_bytes.as_ref()).map_err(|e| {
+        log::error!("Parse error for {}: {}", query.url, e);
+        HttpResponse::Ok().json(QuickAddErrorResponse {
+            query: &query.url,
+            num_results: 0,
+            error: "Could not parse content as a feed",
+        })
+    })?;
+
+    let title = feed
+        .title
+        .map(|t| t.content)
+        .unwrap_or_else(|| query.url.clone());
+
+    // Find the feed's site URL, if any
+    let site = feed
+        .links
+        .into_iter()
+        .find(|l| {
+            // (rel is alternate / missing) or (media_type is html / missing)
+            matches!(l.rel.as_ref().map(|s| s.as_str()), None | Some("alternate"))
+                || matches!(
+                    l.media_type.as_ref().map(|s| s.as_str()),
+                    None | Some("text/html")
+                )
+        })
+        .map(|l| l.href);
+
     let subscription = data
         .db
         .clone()
-        .create_subscription(query.url.clone())
+        .create_subscription(query.url.clone(), title, site)
         .await?;
 
     Ok(HttpResponse::Ok().json(QuickAddResponse {
