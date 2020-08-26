@@ -1,2 +1,5 @@
 blank_lines_upper_bound = 2
 merge_derives = false
+ignore = [
+    "src/schema.rs",
+]
