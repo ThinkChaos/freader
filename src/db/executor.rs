@@ -319,3 +319,26 @@ impl Handler<GetSubscriptionCategories> for Executor {
             .load(&self.conn)
     }
 }
+
+
+pub struct CreateItem(pub NewItem);
+
+impl Message for CreateItem {
+    type Result = diesel::QueryResult<Item>;
+}
+
+impl Handler<CreateItem> for Executor {
+    type Result = <CreateItem as Message>::Result;
+
+    fn handle(&mut self, msg: CreateItem, _: &mut Self::Context) -> Self::Result {
+        self.conn.transaction(|| {
+            use crate::schema::items::dsl::*;
+
+            diesel::insert_into(items)
+                .values(&msg.0)
+                .execute(&self.conn)?;
+
+            items.order(id.desc()).first(&self.conn)
+        })
+    }
+}

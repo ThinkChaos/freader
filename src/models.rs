@@ -45,3 +45,54 @@ pub struct NewSubscriptionCategory<'a> {
     pub subscription_id: &'a db::Id,
     pub category_id: &'a db::Id,
 }
+
+#[derive(Debug, Serialize, Identifiable, AsChangeset, Queryable)]
+pub struct Item {
+    pub id: db::Id,
+    pub subscription_id: db::Id,
+    pub url: String,
+    pub title: String,
+    pub author: String,
+    pub content: String,
+    pub is_read: bool,
+    pub is_starred: bool,
+}
+
+#[derive(Debug, Insertable)]
+#[table_name = "items"]
+pub struct NewItem {
+    pub subscription_id: db::Id,
+    pub url: String,
+    pub title: String,
+    pub author: String,
+    pub content: String,
+    pub is_read: bool,
+    pub is_starred: bool,
+}
+
+impl NewItem {
+    pub fn try_from(
+        entry: &feed_rs::model::Entry,
+        subscription: &Subscription,
+    ) -> Result<Self, &'static str> {
+        let url = entry.links.first().ok_or("Missing URL")?.href.clone();
+        let title = entry.title.as_ref().ok_or("Missing title")?.content.clone();
+        let author = entry.authors.first().ok_or("Missing author")?.name.clone();
+        let content = entry
+            .content
+            .as_ref()
+            .and_then(|c| c.body.as_ref())
+            .ok_or("Missing content")?
+            .clone();
+
+        Ok(Self {
+            subscription_id: subscription.id,
+            url,
+            title,
+            author,
+            content,
+            is_read: false,
+            is_starred: false,
+        })
+    }
+}

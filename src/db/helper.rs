@@ -123,4 +123,8 @@ impl Helper {
                 .send(GetSubscriptionCategories(subscription_id)),
         )
     }
+
+    pub fn create_item(&mut self, new_item: NewItem) -> impl DatabaseFuture<Item> {
+        Self::map(self.executor.send(CreateItem(new_item)))
+    }
 }

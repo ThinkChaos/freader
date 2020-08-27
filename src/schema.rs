@@ -6,6 +6,19 @@ table! {
 }
 
 table! {
+    items (id) {
+        id -> Integer,
+        subscription_id -> Integer,
+        url -> Text,
+        title -> Text,
+        author -> Text,
+        content -> Text,
+        is_read -> Bool,
+        is_starred -> Bool,
+    }
+}
+
+table! {
     subscription_categories (subscription_id, category_id) {
         subscription_id -> Integer,
         category_id -> Integer,
@@ -21,11 +34,13 @@ table! {
     }
 }
 
+joinable!(items -> subscriptions (subscription_id));
 joinable!(subscription_categories -> categories (category_id));
 joinable!(subscription_categories -> subscriptions (subscription_id));
 
 allow_tables_to_appear_in_same_query!(
     categories,
+    items,
     subscription_categories,
     subscriptions,
 );

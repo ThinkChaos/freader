@@ -4,6 +4,7 @@ use diesel::serialize::{self, ToSql};
 use diesel::sql_types::Integer;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
+use std::str::FromStr;
 
 mod executor;
 mod helper;
@@ -17,6 +18,24 @@ pub use helper::Helper;
 #[derive(AsExpression, FromSqlRow)]
 #[sql_type = "Integer"]
 pub struct Id(i32);
+
+impl Id {
+    pub fn from_raw(value: i32) -> Self {
+        Self(value)
+    }
+
+    pub fn inner(self) -> i32 {
+        self.0
+    }
+}
+
+impl FromStr for Id {
+    type Err = std::num::ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.parse().map(Id)
+    }
+}
 
 impl<DB> FromSql<Integer, DB> for Id
 where

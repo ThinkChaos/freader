@@ -21,7 +21,8 @@ struct ListResponse<'a> {
 
 #[derive(Debug, Serialize)]
 struct ListResponseItem<'a> {
-    id: &'a db::Id,
+    #[serde(with = "super::utils::id_as_string")]
+    id: db::Id,
     title: &'a str,
     #[serde(rename = "htmlUrl", skip_serializing_if = "Option::is_none")]
     site_url: &'a Option<String>,
@@ -30,7 +31,8 @@ struct ListResponseItem<'a> {
 
 #[derive(Debug, Serialize)]
 struct ListResponseCategoryItem<'a> {
-    id: &'a db::Id,
+    #[serde(with = "super::utils::id_as_string")]
+    id: db::Id,
     label: &'a str,
 }
 
@@ -49,12 +51,12 @@ async fn list(data: web::Data<AppData>) -> actix_web::Result<HttpResponse> {
         .zip(&categories)
         .map(|(subscription, categories)| {
             let categories = categories.iter().map(|category| ListResponseCategoryItem {
-                id: &category.id,
+                id: category.id,
                 label: &category.name,
             });
 
             ListResponseItem {
-                id: &subscription.id,
+                id: subscription.id,
                 title: &subscription.title,
                 site_url: &subscription.site_url,
                 categories: categories.collect(),
@@ -76,7 +78,7 @@ struct QuickAddQuery {
 
 #[derive(Debug, Serialize)]
 struct QuickAddResponse<'a> {
-    #[serde(rename = "streamId")]
+    #[serde(rename = "streamId", with = "super::utils::id_as_string")]
     stream_id: &'a db::Id,
     query: &'a str,
     #[serde(rename = "numResults")]
@@ -95,6 +97,8 @@ async fn quickadd(
     data: web::Data<AppData>,
     query: web::Query<QuickAddQuery>,
 ) -> actix_web::Result<HttpResponse> {
+    let mut db = data.db.clone();
+
     let feed_bytes = reqwest::get(&query.url)
         .and_then(|r| r.bytes())
         .await
@@ -103,7 +107,7 @@ async fn quickadd(
             HttpResponse::Ok().json(QuickAddErrorResponse {
                 query: &query.url,
                 num_results: 0,
-                error: "Could not fetch feed",
+                error: "Could not fetch feed.",
             })
         })?;
 
@@ -112,7 +116,7 @@ async fn quickadd(
         HttpResponse::Ok().json(QuickAddErrorResponse {
             query: &query.url,
             num_results: 0,
-            error: "Could not parse content as a feed",
+            error: "Could not parse content as a feed.",
         })
     })?;
 
@@ -135,11 +139,32 @@ async fn quickadd(
         })
         .map(|l| l.href);
 
-    let subscription = data
-        .db
-        .clone()
+    let subscription = db
         .create_subscription(query.url.clone(), title, site)
         .await?;
+
+    let mut any_ok = false;
+    for entry in &feed.entries {
+        let new_item = match crate::models::NewItem::try_from(entry, &subscription) {
+            Ok(item) => item,
+            Err(e) => {
+                log::error!("{}", e);
+                log::debug!("{:#?}", entry);
+                continue;
+            }
+        };
+
+        any_ok = true;
+        db.create_item(new_item).await?;
+    }
+
+    if !any_ok && !feed.entries.is_empty() {
+        return Ok(HttpResponse::Ok().json(QuickAddErrorResponse {
+            query: &subscription.feed_url,
+            num_results: 0,
+            error: "None of the feed's items could be parsed.",
+        }));
+    }
 
     Ok(HttpResponse::Ok().json(QuickAddResponse {
         query: &subscription.feed_url,
@@ -151,7 +176,7 @@ async fn quickadd(
 
 #[derive(Debug, Deserialize)]
 struct EditData {
-    #[serde(rename = "s")]
+    #[serde(rename = "s", with = "super::utils::id_as_string")]
     id: db::Id,
     // #[serde(rename="ac")]
     // operation: Option<String>, // "edit"
