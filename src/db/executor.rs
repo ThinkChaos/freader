@@ -1,8 +1,7 @@
 use actix::prelude::*;
 use diesel::prelude::*;
 
-use crate::db;
-use crate::models::*;
+use crate::db::{self, models::*, schema};
 
 pub struct Executor {
     conn: SqliteConnection,
@@ -42,7 +41,7 @@ impl Handler<CreateSubscription> for Executor {
         };
 
         self.conn.transaction(|| {
-            use crate::schema::subscriptions::dsl::*;
+            use schema::subscriptions::dsl::*;
 
             diesel::insert_into(subscriptions)
                 .values(&subscription)
@@ -64,7 +63,7 @@ impl Handler<GetSubscription> for Executor {
     type Result = <GetSubscription as Message>::Result;
 
     fn handle(&mut self, msg: GetSubscription, _: &mut Self::Context) -> Self::Result {
-        use crate::schema::subscriptions::dsl::*;
+        use schema::subscriptions::dsl::*;
 
         subscriptions.find(msg.0).get_result(&self.conn)
     }
@@ -81,7 +80,7 @@ impl Handler<GetSubscriptions> for Executor {
     type Result = <GetSubscriptions as Message>::Result;
 
     fn handle(&mut self, _: GetSubscriptions, _: &mut Self::Context) -> Self::Result {
-        use crate::schema::subscriptions::dsl::*;
+        use schema::subscriptions::dsl::*;
 
         subscriptions.load(&self.conn)
     }
@@ -144,7 +143,7 @@ impl Handler<CreateCategory> for Executor {
         let category = NewCategory { name: &msg.name };
 
         self.conn.transaction(|| {
-            use crate::schema::categories::dsl::*;
+            use schema::categories::dsl::*;
 
             diesel::insert_into(categories)
                 .values(&category)
@@ -166,7 +165,7 @@ impl Handler<GetCategory> for Executor {
     type Result = <GetCategory as Message>::Result;
 
     fn handle(&mut self, msg: GetCategory, _: &mut Self::Context) -> Self::Result {
-        use crate::schema::categories::dsl::*;
+        use schema::categories::dsl::*;
 
         categories.find(msg.0).get_result(&self.conn)
     }
@@ -183,7 +182,7 @@ impl Handler<GetCategoryByName> for Executor {
     type Result = <GetCategoryByName as Message>::Result;
 
     fn handle(&mut self, msg: GetCategoryByName, _: &mut Self::Context) -> Self::Result {
-        use crate::schema::categories::dsl::*;
+        use schema::categories::dsl::*;
 
         let maybe_category = categories
             .filter(name.eq(&msg.0))
@@ -228,7 +227,7 @@ impl Handler<SubscriptionAddCategory> for Executor {
     type Result = <SubscriptionAddCategory as Message>::Result;
 
     fn handle(&mut self, msg: SubscriptionAddCategory, ctx: &mut Self::Context) -> Self::Result {
-        use crate::schema::subscription_categories::dsl::subscription_categories;
+        use schema::subscription_categories::dsl::subscription_categories;
 
         let SubscriptionAddCategory {
             subscription_id,
@@ -269,7 +268,7 @@ impl Handler<SubscriptionRemoveCategory> for Executor {
     type Result = <SubscriptionRemoveCategory as Message>::Result;
 
     fn handle(&mut self, msg: SubscriptionRemoveCategory, ctx: &mut Self::Context) -> Self::Result {
-        use crate::schema::subscription_categories::dsl::{category_id, subscription_categories};
+        use schema::subscription_categories::dsl::{category_id, subscription_categories};
 
         let SubscriptionRemoveCategory {
             subscription_id,
@@ -288,7 +287,7 @@ impl Handler<SubscriptionRemoveCategory> for Executor {
                 .get_result(&self.conn)?;
 
             if n == 0 {
-                use crate::schema::categories::dsl::categories;
+                use schema::categories::dsl::categories;
 
                 diesel::delete(categories.find(category.id)).execute(&self.conn)?;
             }
@@ -309,8 +308,8 @@ impl Handler<GetSubscriptionCategories> for Executor {
     type Result = <GetSubscriptionCategories as Message>::Result;
 
     fn handle(&mut self, msg: GetSubscriptionCategories, _: &mut Self::Context) -> Self::Result {
-        use crate::schema::categories::dsl::*;
-        use crate::schema::subscription_categories::dsl::*;
+        use schema::categories::dsl::*;
+        use schema::subscription_categories::dsl::*;
 
         subscription_categories
             .filter(subscription_id.eq(&msg.0))
@@ -332,7 +331,7 @@ impl Handler<CreateItem> for Executor {
 
     fn handle(&mut self, msg: CreateItem, _: &mut Self::Context) -> Self::Result {
         self.conn.transaction(|| {
-            use crate::schema::items::dsl::*;
+            use schema::items::dsl::*;
 
             diesel::insert_into(items)
                 .values(&msg.0)

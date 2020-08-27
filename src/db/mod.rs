@@ -8,6 +8,8 @@ use std::str::FromStr;
 
 mod executor;
 mod helper;
+pub mod models;
+mod schema;
 
 pub use executor::Executor;
 pub use helper::Helper;

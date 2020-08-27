@@ -9,10 +9,8 @@ pub mod appdata;
 pub mod auth;
 pub mod config;
 pub mod db;
-pub mod models;
 pub mod prelude;
 pub mod reader;
-pub mod schema;
 pub mod utils;
 
 use prelude::*;

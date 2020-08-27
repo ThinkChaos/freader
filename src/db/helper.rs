@@ -4,9 +4,7 @@ use futures::future::{self, TryFutureExt};
 use std::fmt::{self, Display};
 use std::future::Future;
 
-use super::executor::*;
-use super::Id;
-use crate::models::*;
+use super::{executor::*, models::*, Id};
 
 #[derive(Debug)]
 pub enum Error {

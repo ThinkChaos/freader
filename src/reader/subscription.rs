@@ -3,14 +3,14 @@ use actix_web::{web, HttpResponse};
 use futures::TryFutureExt;
 use serde::{Deserialize, Serialize};
 
-use crate::models::Category;
+use crate::db::models::{Category, NewItem};
 use crate::prelude::*;
 
 pub fn service() -> impl HttpServiceFactory {
     web::scope("/subscription")
+        .route("/edit", web::post().to(edit))
         .route("/list", web::get().to(list))
         .route("/quickadd", web::post().to(quickadd))
-        .route("/edit", web::post().to(edit))
 }
 
 
@@ -145,7 +145,7 @@ async fn quickadd(
 
     let mut any_ok = false;
     for entry in &feed.entries {
-        let new_item = match crate::models::NewItem::try_from(entry, &subscription) {
+        let new_item = match NewItem::try_from(entry, &subscription) {
             Ok(item) => item,
             Err(e) => {
                 log::error!("{}", e);
@@ -194,9 +194,7 @@ async fn edit(
 ) -> actix_web::Result<HttpResponse> {
     let mut db = data.db.clone();
 
-    if form.title.is_some() {
-        let title = form.title.take().unwrap();
-
+    if let Some(title) = form.title.take() {
         db.transform_subscription(form.id, move |subscription| {
             subscription.title = title;
         })
@@ -204,15 +202,11 @@ async fn edit(
     }
 
     if form.add_category != form.remove_category {
-        if form.add_category.is_some() {
-            let category = form.add_category.take().unwrap();
-
+        if let Some(category) = form.add_category.take() {
             db.subscription_add_category(form.id, category).await?;
         }
 
-        if form.remove_category.is_some() {
-            let category = form.remove_category.take().unwrap();
-
+        if let Some(category) = form.remove_category.take() {
             db.subscription_remove_category(form.id, category).await?;
         }
     }
