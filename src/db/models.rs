@@ -53,6 +53,8 @@ pub struct Item {
     pub url: String,
     pub title: String,
     pub author: String,
+    pub published: chrono::NaiveDateTime,
+    pub updated: chrono::NaiveDateTime,
     pub content: String,
     pub is_read: bool,
     pub is_starred: bool,
@@ -65,6 +67,8 @@ pub struct NewItem {
     pub url: String,
     pub title: String,
     pub author: String,
+    pub published: chrono::NaiveDateTime,
+    pub updated: chrono::NaiveDateTime,
     pub content: String,
     pub is_read: bool,
     pub is_starred: bool,
@@ -78,6 +82,11 @@ impl NewItem {
         let url = entry.links.first().ok_or("Missing URL")?.href.clone();
         let title = entry.title.as_ref().ok_or("Missing title")?.content.clone();
         let author = entry.authors.first().ok_or("Missing author")?.name.clone();
+        let published = entry
+            .published
+            .ok_or("Missing publishing date")?
+            .naive_utc();
+        let updated = entry.updated.map(|d| d.naive_utc()).unwrap_or(published);
         let content = entry
             .content
             .as_ref()
@@ -90,6 +99,8 @@ impl NewItem {
             url,
             title,
             author,
+            published,
+            updated,
             content,
             is_read: false,
             is_starred: false,

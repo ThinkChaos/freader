@@ -13,7 +13,8 @@ actix-http = "1.0.1"
 actix-rt = "1.1.1"
 actix-service = "1.0.6"
 actix-web = "2.0.0"
-diesel = { version = "1.4.5", default-features = false, features = ["sqlite"] }
+chrono = { version = "0.4.15", features = ["serde"] }
+diesel = { version = "1.4.5", default-features = false, features = ["chrono", "sqlite"] }
 dotenv = "0.15.0"
 env_logger = "0.7.1"
 feed-rs = "0.4.0"

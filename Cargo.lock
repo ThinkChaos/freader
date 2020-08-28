@@ -475,6 +475,7 @@ checksum = "942f72db697d8767c22d46a598e01f2d3b475501ea43d0db4f16d90259182d0b"
 dependencies = [
  "num-integer",
  "num-traits",
+ "serde",
  "time",
 ]
 
@@ -566,6 +567,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e2de9deab977a153492a1468d1b1c0662c1cf39e5ea87d0c060ecd59ef18d8c"
 dependencies = [
  "byteorder",
+ "chrono",
  "diesel_derives",
  "libsqlite3-sys",
 ]
@@ -714,6 +716,7 @@ dependencies = [
  "actix-rt",
  "actix-service",
  "actix-web",
+ "chrono",
  "diesel",
  "dotenv",
  "env_logger",

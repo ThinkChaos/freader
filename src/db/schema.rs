@@ -12,6 +12,8 @@ table! {
         url -> Text,
         title -> Text,
         author -> Text,
+        published -> Timestamp,
+        updated -> Timestamp,
         content -> Text,
         is_read -> Bool,
         is_starred -> Bool,
