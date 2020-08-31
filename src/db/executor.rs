@@ -341,3 +341,34 @@ impl Handler<CreateItem> for Executor {
         })
     }
 }
+
+
+pub struct FindItems {
+    pub read: Option<bool>,
+    pub starred: Option<bool>,
+    pub max_items: usize,
+}
+
+impl Message for FindItems {
+    type Result = diesel::QueryResult<Vec<Item>>;
+}
+
+impl Handler<FindItems> for Executor {
+    type Result = <FindItems as Message>::Result;
+
+    fn handle(&mut self, msg: FindItems, _: &mut Self::Context) -> Self::Result {
+        use schema::items::dsl::*;
+
+        let mut query = items.into_boxed();
+
+        if let Some(val) = msg.read {
+            query = query.filter(is_read.eq(val));
+        }
+
+        if let Some(val) = msg.starred {
+            query = query.filter(is_starred.eq(val));
+        }
+
+        query.limit(msg.max_items as i64).load(&self.conn)
+    }
+}

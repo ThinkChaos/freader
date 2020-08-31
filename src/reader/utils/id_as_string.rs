@@ -28,15 +28,11 @@ where
             formatter.write_str("string")
         }
 
-        fn visit_str<E>(self, value: &str) -> Result<db::Id, E>
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
-            value
-                .parse()
-                .or_else(|_| i32::from_str_radix(value, 16))
-                .map(db::Id::from_raw)
-                .map_err(de::Error::custom)
+            value.parse().map_err(de::Error::custom)
         }
     }
 

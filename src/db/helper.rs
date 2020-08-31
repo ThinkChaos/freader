@@ -125,4 +125,17 @@ impl Helper {
     pub fn create_item(&mut self, new_item: NewItem) -> impl DatabaseFuture<Item> {
         Self::map(self.executor.send(CreateItem(new_item)))
     }
+
+    pub fn find_items(
+        &mut self,
+        read: Option<bool>,
+        starred: Option<bool>,
+        max_items: usize,
+    ) -> impl DatabaseFuture<Vec<Item>> {
+        Self::map(self.executor.send(FindItems {
+            read,
+            starred,
+            max_items,
+        }))
+    }
 }
