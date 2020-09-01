@@ -126,6 +126,13 @@ impl Helper {
         Self::map(self.executor.send(CreateItem(new_item)))
     }
 
+    pub fn get_items_and_subscriptions(
+        &mut self,
+        ids: Vec<Id>,
+    ) -> impl DatabaseFuture<Vec<(Item, Subscription)>> {
+        Self::map(self.executor.send(GetItemsAndSubscriptions(ids)))
+    }
+
     pub fn find_items(
         &mut self,
         read: Option<bool>,

@@ -1,12 +1,14 @@
 use actix_web::dev::HttpServiceFactory;
 use actix_web::{web, HttpResponse};
 use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
 
 use super::subscription::{LabelId, SubscriptionId, LABEL_ID_PREFIX, SUBSCRIPTION_ID_PREFIX};
 use crate::prelude::*;
 
 pub fn service() -> impl HttpServiceFactory {
     web::scope("/stream")
+        .route("/items/contents", web::post().to(item_contents))
         .route("/items/ids", web::get().to(item_ids))
 }
 
@@ -77,6 +79,102 @@ async fn item_ids(
     }))
 }
 
+// serde_urlencoded doesn't support repeated items because it is non-standard.
+// We must manually parse the key/value pairs.
+type ItemContentsForm = Vec<(String, String)>;
+
+#[derive(Debug, Serialize)]
+struct ItemContentsResponse<'a> {
+    items: &'a Vec<ItemContentsResponseItem<'a>>,
+}
+
+#[derive(Debug, Serialize)]
+struct ItemContentsResponseItem<'a> {
+    #[serde(serialize_with = "item_id::long")]
+    id: ItemId,
+    title: &'a str,
+    author: &'a str,
+    published: i64,
+    updated: i64,
+    #[serde(rename = "timestampUsec")]
+    timestamp_usec: String,
+    #[serde(rename = "alternate")]
+    link: Vec<ItemContentsResponseItemLink<'a>>,
+    origin: ItemContentsResponseItemOrigin<'a>,
+    summary: ItemContentsResponseItemSummary<'a>,
+}
+
+#[derive(Debug, Serialize)]
+struct ItemContentsResponseItemLink<'a> {
+    href: &'a str,
+}
+
+#[derive(Debug, Serialize)]
+struct ItemContentsResponseItemOrigin<'a> {
+    #[serde(rename = "streamId")]
+    id: SubscriptionId,
+    title: &'a str,
+    #[serde(rename = "htmlUrl", skip_serializing_if = "Option::is_none")]
+    site_url: &'a Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct ItemContentsResponseItemSummary<'a> {
+    content: &'a str,
+}
+
+async fn item_contents(
+    data: web::Data<AppData>,
+    form: web::Form<ItemContentsForm>,
+) -> actix_web::Result<HttpResponse> {
+    let mut db = data.db.clone();
+
+    // Manually extract the IDs
+    let ids = {
+        let mut ids = Vec::with_capacity(form.len());
+        for (k, v) in form.iter() {
+            if k == "i" {
+                match ItemId::try_from(v.to_owned()) {
+                    Ok(id) => ids.push(id.0),
+                    Err(_) => return Ok(HttpResponse::BadRequest().body("Invalid item ID")),
+                }
+            }
+        }
+        ids
+    };
+
+    let pairs = db.get_items_and_subscriptions(ids).await?;
+
+    let items = pairs
+        .iter()
+        .map(|(item, subscription)| ItemContentsResponseItem {
+            id: ItemId(item.id),
+            title: &item.title,
+            author: &item.author,
+            published: item.published.timestamp(),
+            updated: item.updated.timestamp(),
+            timestamp_usec: (item.published.timestamp() * 1_000_000
+                + item.published.timestamp_subsec_micros() as i64)
+                .to_string(),
+            link: vec![ItemContentsResponseItemLink {
+                href: &item.url,
+            }],
+            origin: ItemContentsResponseItemOrigin {
+                id: SubscriptionId(item.subscription_id),
+                title: &subscription.title,
+                site_url: &subscription.site_url,
+            },
+            summary: ItemContentsResponseItemSummary {
+                content: &item.content,
+            },
+        })
+        .collect();
+
+    Ok(HttpResponse::Ok().json(ItemContentsResponse {
+        items: &items,
+    }))
+}
+
 
 /// A Stream represents a set of items.
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -109,7 +207,7 @@ impl std::convert::Into<String> for StreamId {
     }
 }
 
-impl std::convert::TryFrom<String> for StreamId {
+impl TryFrom<String> for StreamId {
     type Error = String;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
@@ -140,7 +238,7 @@ pub const LONG_ITEM_ID_PREFIX: &'static str = "tag:google.com,2005:reader/item/"
 #[serde(try_from = "String")]
 pub struct ItemId(pub db::Id);
 
-impl std::convert::TryFrom<String> for ItemId {
+impl TryFrom<String> for ItemId {
     type Error = String;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {

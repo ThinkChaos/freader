@@ -343,6 +343,26 @@ impl Handler<CreateItem> for Executor {
 }
 
 
+pub struct GetItemsAndSubscriptions(pub Vec<db::Id>);
+
+impl Message for GetItemsAndSubscriptions {
+    type Result = diesel::QueryResult<Vec<(Item, Subscription)>>;
+}
+
+impl Handler<GetItemsAndSubscriptions> for Executor {
+    type Result = <GetItemsAndSubscriptions as Message>::Result;
+
+    fn handle(&mut self, msg: GetItemsAndSubscriptions, _: &mut Self::Context) -> Self::Result {
+        use schema::items::dsl::*;
+
+        items
+            .filter(id.eq_any(msg.0))
+            .inner_join(schema::subscriptions::table)
+            .load(&self.conn)
+    }
+}
+
+
 pub struct FindItems {
     pub read: Option<bool>,
     pub starred: Option<bool>,
