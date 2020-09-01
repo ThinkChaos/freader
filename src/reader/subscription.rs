@@ -21,8 +21,7 @@ struct ListResponse<'a> {
 
 #[derive(Debug, Serialize)]
 struct ListResponseItem<'a> {
-    #[serde(with = "super::utils::id_as_string")]
-    id: db::Id,
+    id: SubscriptionId,
     title: &'a str,
     #[serde(rename = "htmlUrl", skip_serializing_if = "Option::is_none")]
     site_url: &'a Option<String>,
@@ -31,8 +30,7 @@ struct ListResponseItem<'a> {
 
 #[derive(Debug, Serialize)]
 struct ListResponseCategoryItem<'a> {
-    #[serde(with = "super::utils::id_as_string")]
-    id: db::Id,
+    id: LabelId,
     label: &'a str,
 }
 
@@ -51,12 +49,12 @@ async fn list(data: web::Data<AppData>) -> actix_web::Result<HttpResponse> {
         .zip(&categories)
         .map(|(subscription, categories)| {
             let categories = categories.iter().map(|category| ListResponseCategoryItem {
-                id: category.id,
+                id: LabelId(category.name.clone()),
                 label: &category.name,
             });
 
             ListResponseItem {
-                id: subscription.id,
+                id: SubscriptionId(subscription.id),
                 title: &subscription.title,
                 site_url: &subscription.site_url,
                 categories: categories.collect(),
@@ -78,8 +76,8 @@ struct QuickAddQuery {
 
 #[derive(Debug, Serialize)]
 struct QuickAddResponse<'a> {
-    #[serde(rename = "streamId", with = "super::utils::id_as_string")]
-    stream_id: &'a db::Id,
+    #[serde(rename = "streamId")]
+    stream_id: SubscriptionId,
     query: &'a str,
     #[serde(rename = "numResults")]
     num_results: u8,
@@ -168,7 +166,7 @@ async fn quickadd(
 
     Ok(HttpResponse::Ok().json(QuickAddResponse {
         query: &subscription.feed_url,
-        stream_id: &subscription.id,
+        stream_id: SubscriptionId(subscription.id),
         num_results: 1,
     }))
 }
@@ -176,16 +174,16 @@ async fn quickadd(
 
 #[derive(Debug, Deserialize)]
 struct EditData {
-    #[serde(rename = "s", with = "super::utils::id_as_string")]
-    id: db::Id,
+    #[serde(rename = "s")]
+    id: SubscriptionId,
     // #[serde(rename="ac")]
     // operation: Option<String>, // "edit"
     #[serde(rename = "t")]
     title: Option<String>,
     #[serde(rename = "a")]
-    add_category: Option<String>,
+    add_category: Option<LabelId>,
     #[serde(rename = "r")]
-    remove_category: Option<String>,
+    remove_category: Option<LabelId>,
 }
 
 async fn edit(
@@ -195,7 +193,7 @@ async fn edit(
     let mut db = data.db.clone();
 
     if let Some(title) = form.title.take() {
-        db.transform_subscription(form.id, move |subscription| {
+        db.transform_subscription(form.id.0, move |subscription| {
             subscription.title = title;
         })
         .await?;
@@ -203,13 +201,71 @@ async fn edit(
 
     if form.add_category != form.remove_category {
         if let Some(category) = form.add_category.take() {
-            db.subscription_add_category(form.id, category).await?;
+            db.subscription_add_category(form.id.0, category.0).await?;
         }
 
         if let Some(category) = form.remove_category.take() {
-            db.subscription_remove_category(form.id, category).await?;
+            db.subscription_remove_category(form.id.0, category.0)
+                .await?;
         }
     }
 
     Ok(HttpResponse::Ok().body("OK"))
+}
+
+pub const SUBSCRIPTION_ID_PREFIX: &'static str = "feed/";
+
+/// A subscription is a feed.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[derive(Hash, Eq, PartialEq)]
+#[serde(into = "String", try_from = "String")]
+pub struct SubscriptionId(pub db::Id);
+
+impl std::convert::Into<String> for SubscriptionId {
+    fn into(self) -> String {
+        format!("{}{}", SUBSCRIPTION_ID_PREFIX, self.0.inner())
+    }
+}
+
+impl std::convert::TryFrom<String> for SubscriptionId {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if value.starts_with(SUBSCRIPTION_ID_PREFIX) {
+            Ok(Self(
+                value[SUBSCRIPTION_ID_PREFIX.len()..]
+                    .parse::<db::Id>()
+                    .map_err(|e| e.to_string())?,
+            ))
+        } else {
+            Err(format!("Invalid feed ID: {}", value))
+        }
+    }
+}
+
+
+pub const LABEL_ID_PREFIX: &'static str = "user/-/label/";
+
+/// A label identifies a folder or a tag.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Hash, Eq, PartialEq)]
+#[serde(into = "String", try_from = "String")]
+pub struct LabelId(pub String);
+
+impl std::convert::Into<String> for LabelId {
+    fn into(self) -> String {
+        format!("{}{}", LABEL_ID_PREFIX, self.0)
+    }
+}
+
+impl std::convert::TryFrom<String> for LabelId {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if value.starts_with(LABEL_ID_PREFIX) {
+            Ok(Self(value[LABEL_ID_PREFIX.len()..].to_owned()))
+        } else {
+            Err(format!("Invalid tag/folder ID: {}", value))
+        }
+    }
 }

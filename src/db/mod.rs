@@ -35,7 +35,7 @@ impl FromStr for Id {
     type Err = std::num::ParseIntError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.parse().or_else(|_| i32::from_str_radix(s, 16)).map(Id)
+        s.parse().map(Id)
     }
 }
 
