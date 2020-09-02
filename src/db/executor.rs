@@ -1,16 +1,17 @@
 use actix::prelude::*;
 use diesel::prelude::*;
+use std::rc::Rc;
 
 use crate::db::{self, models::*, schema};
 
 pub struct Executor {
-    conn: SqliteConnection,
+    conn: Rc<SqliteConnection>,
 }
 
 impl Executor {
     pub fn connect(connspec: &str) -> ConnectionResult<Self> {
         Ok(Executor {
-            conn: SqliteConnection::establish(connspec)?,
+            conn: Rc::new(SqliteConnection::establish(connspec)?),
         })
     }
 }
@@ -45,9 +46,9 @@ impl Handler<CreateSubscription> for Executor {
 
             diesel::insert_into(subscriptions)
                 .values(&subscription)
-                .execute(&self.conn)?;
+                .execute(self.conn.as_ref())?;
 
-            subscriptions.order(id.desc()).first(&self.conn)
+            subscriptions.order(id.desc()).first(self.conn.as_ref())
         })
     }
 }
@@ -65,7 +66,7 @@ impl Handler<GetSubscription> for Executor {
     fn handle(&mut self, msg: GetSubscription, _: &mut Self::Context) -> Self::Result {
         use schema::subscriptions::dsl::*;
 
-        subscriptions.find(msg.0).get_result(&self.conn)
+        subscriptions.find(msg.0).get_result(self.conn.as_ref())
     }
 }
 
@@ -82,7 +83,7 @@ impl Handler<GetSubscriptions> for Executor {
     fn handle(&mut self, _: GetSubscriptions, _: &mut Self::Context) -> Self::Result {
         use schema::subscriptions::dsl::*;
 
-        subscriptions.load(&self.conn)
+        subscriptions.load(self.conn.as_ref())
     }
 }
 
@@ -101,7 +102,7 @@ impl Handler<UpdateSubscription> for Executor {
 
         diesel::update(&subscription)
             .set(&subscription)
-            .execute(&self.conn)
+            .execute(self.conn.as_ref())
             .map(|_| subscription)
     }
 }
@@ -119,11 +120,13 @@ impl Handler<TransformSubscription> for Executor {
     fn handle(&mut self, msg: TransformSubscription, ctx: &mut Self::Context) -> Self::Result {
         let (id, transform) = (msg.0, msg.1);
 
-        let mut subscription = self.handle(GetSubscription(id), ctx)?;
+        self.conn.clone().transaction(|| {
+            let mut subscription = self.handle(GetSubscription(id), ctx)?;
 
-        transform(&mut subscription);
+            transform(&mut subscription);
 
-        self.handle(UpdateSubscription(subscription), ctx)
+            self.handle(UpdateSubscription(subscription), ctx)
+        })
     }
 }
 
@@ -147,9 +150,9 @@ impl Handler<CreateCategory> for Executor {
 
             diesel::insert_into(categories)
                 .values(&category)
-                .execute(&self.conn)?;
+                .execute(self.conn.as_ref())?;
 
-            categories.order(id.desc()).first(&self.conn)
+            categories.order(id.desc()).first(self.conn.as_ref())
         })
     }
 }
@@ -167,7 +170,7 @@ impl Handler<GetCategory> for Executor {
     fn handle(&mut self, msg: GetCategory, _: &mut Self::Context) -> Self::Result {
         use schema::categories::dsl::*;
 
-        categories.find(msg.0).get_result(&self.conn)
+        categories.find(msg.0).get_result(self.conn.as_ref())
     }
 }
 
@@ -187,7 +190,7 @@ impl Handler<GetCategoryByName> for Executor {
         let maybe_category = categories
             .filter(name.eq(&msg.0))
             .limit(1)
-            .load(&self.conn)?
+            .load(self.conn.as_ref())?
             .pop();
 
         Ok(maybe_category)
@@ -207,9 +210,11 @@ impl Handler<GetOrCreateCategory> for Executor {
     type Result = <GetOrCreateCategory as Message>::Result;
 
     fn handle(&mut self, msg: GetOrCreateCategory, ctx: &mut Self::Context) -> Self::Result {
-        self.handle(GetCategoryByName(msg.name.clone()), ctx)?
-            .map(Ok)
-            .unwrap_or_else(|| self.handle(CreateCategory { name: msg.name }, ctx))
+        self.conn.clone().transaction(|| {
+            self.handle(GetCategoryByName(msg.name.clone()), ctx)?
+                .map(Ok)
+                .unwrap_or_else(|| self.handle(CreateCategory { name: msg.name }, ctx))
+        })
     }
 }
 
@@ -234,23 +239,25 @@ impl Handler<SubscriptionAddCategory> for Executor {
             category_name,
         } = msg;
 
-        let category = self.handle(
-            GetOrCreateCategory {
-                name: category_name,
-            },
-            ctx,
-        )?;
+        self.conn.clone().transaction(|| {
+            let category = self.handle(
+                GetOrCreateCategory {
+                    name: category_name,
+                },
+                ctx,
+            )?;
 
-        let subscription_category = NewSubscriptionCategory {
-            subscription_id: &subscription_id,
-            category_id: &category.id,
-        };
+            let subscription_category = NewSubscriptionCategory {
+                subscription_id: &subscription_id,
+                category_id: &category.id,
+            };
 
-        diesel::insert_or_ignore_into(subscription_categories)
-            .values(&subscription_category)
-            .execute(&self.conn)?;
+            diesel::insert_or_ignore_into(subscription_categories)
+                .values(&subscription_category)
+                .execute(self.conn.as_ref())?;
 
-        Ok(category)
+            Ok(category)
+        })
     }
 }
 
@@ -275,25 +282,27 @@ impl Handler<SubscriptionRemoveCategory> for Executor {
             category_name,
         } = msg;
 
-        let category = self.handle(GetCategoryByName(category_name), ctx)?;
+        self.conn.clone().transaction(|| {
+            let category = self.handle(GetCategoryByName(category_name), ctx)?;
 
-        if let Some(category) = category {
-            diesel::delete(subscription_categories.find((subscription_id, &category.id)))
-                .execute(&self.conn)?;
+            if let Some(category) = category {
+                diesel::delete(subscription_categories.find((subscription_id, &category.id)))
+                    .execute(self.conn.as_ref())?;
 
-            let n: i64 = subscription_categories
-                .filter(category_id.eq(category.id))
-                .count()
-                .get_result(&self.conn)?;
+                let n: i64 = subscription_categories
+                    .filter(category_id.eq(category.id))
+                    .count()
+                    .get_result(self.conn.as_ref())?;
 
-            if n == 0 {
-                use schema::categories::dsl::categories;
+                if n == 0 {
+                    use schema::categories::dsl::categories;
 
-                diesel::delete(categories.find(category.id)).execute(&self.conn)?;
+                    diesel::delete(categories.find(category.id)).execute(self.conn.as_ref())?;
+                }
             }
-        }
 
-        Ok(())
+            Ok(())
+        })
     }
 }
 
@@ -315,7 +324,7 @@ impl Handler<GetSubscriptionCategories> for Executor {
             .filter(subscription_id.eq(&msg.0))
             .inner_join(categories)
             .select(categories::all_columns())
-            .load(&self.conn)
+            .load(self.conn.as_ref())
     }
 }
 
@@ -335,9 +344,9 @@ impl Handler<CreateItem> for Executor {
 
             diesel::insert_into(items)
                 .values(&msg.0)
-                .execute(&self.conn)?;
+                .execute(self.conn.as_ref())?;
 
-            items.order(id.desc()).first(&self.conn)
+            items.order(id.desc()).first(self.conn.as_ref())
         })
     }
 }
@@ -358,7 +367,7 @@ impl Handler<GetItemsAndSubscriptions> for Executor {
         items
             .filter(id.eq_any(msg.0))
             .inner_join(schema::subscriptions::table)
-            .load(&self.conn)
+            .load(self.conn.as_ref())
     }
 }
 
@@ -389,6 +398,6 @@ impl Handler<FindItems> for Executor {
             query = query.filter(is_starred.eq(val));
         }
 
-        query.limit(msg.max_items as i64).load(&self.conn)
+        query.limit(msg.max_items as i64).load(self.conn.as_ref())
     }
 }
