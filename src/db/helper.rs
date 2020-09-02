@@ -61,6 +61,10 @@ impl Helper {
         }))
     }
 
+    pub fn remove_subscription(&mut self, id: Id) -> impl DatabaseFuture<()> {
+        Self::map(self.executor.send(RemoveSubscription(id)))
+    }
+
     pub fn get_subscription(&mut self, id: Id) -> impl DatabaseFuture<Subscription> {
         Self::map(self.executor.send(GetSubscription(id)))
     }

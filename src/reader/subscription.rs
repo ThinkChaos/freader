@@ -176,8 +176,8 @@ async fn quickadd(
 struct EditData {
     #[serde(rename = "s")]
     id: SubscriptionId,
-    // #[serde(rename="ac")]
-    // operation: Option<String>, // "edit"
+    #[serde(rename = "ac")]
+    action: String,
     #[serde(rename = "t")]
     title: Option<String>,
     #[serde(rename = "a")]
@@ -192,22 +192,30 @@ async fn edit(
 ) -> actix_web::Result<HttpResponse> {
     let mut db = data.db.clone();
 
-    if let Some(title) = form.title.take() {
-        db.transform_subscription(form.id.0, move |subscription| {
-            subscription.title = title;
-        })
-        .await?;
-    }
-
-    if form.add_category != form.remove_category {
-        if let Some(category) = form.add_category.take() {
-            db.subscription_add_category(form.id.0, category.0).await?;
-        }
-
-        if let Some(category) = form.remove_category.take() {
-            db.subscription_remove_category(form.id.0, category.0)
+    match form.action.as_str() {
+        "edit" => {
+            if let Some(title) = form.title.take() {
+                db.transform_subscription(form.id.0, move |subscription| {
+                    subscription.title = title;
+                })
                 .await?;
+            }
+
+            if form.add_category != form.remove_category {
+                if let Some(category) = form.add_category.take() {
+                    db.subscription_add_category(form.id.0, category.0).await?;
+                }
+
+                if let Some(category) = form.remove_category.take() {
+                    db.subscription_remove_category(form.id.0, category.0)
+                        .await?;
+                }
+            }
         }
+        "unsubscribe" => {
+            db.remove_subscription(form.id.0).await?;
+        }
+        _ => return Ok(HttpResponse::BadRequest().body("Bad value for ac")),
     }
 
     Ok(HttpResponse::Ok().body("OK"))

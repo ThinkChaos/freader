@@ -54,6 +54,47 @@ impl Handler<CreateSubscription> for Executor {
 }
 
 
+pub struct RemoveSubscription(pub db::Id);
+
+impl Message for RemoveSubscription {
+    type Result = diesel::QueryResult<()>;
+}
+
+impl Handler<RemoveSubscription> for Executor {
+    type Result = <RemoveSubscription as Message>::Result;
+
+    fn handle(&mut self, msg: RemoveSubscription, ctx: &mut Self::Context) -> Self::Result {
+        use schema::items::dsl::*;
+        use schema::subscriptions::dsl::*;
+
+        self.conn.clone().transaction(|| {
+            if let Some(subscription) = self.handle(GetSubscription(msg.0), ctx).optional()? {
+                // Remove subscription's categories
+                let categories = self.handle(GetSubscriptionCategories(subscription.id), ctx)?;
+                for category in categories {
+                    self.handle(
+                        SubscriptionRemoveCategory {
+                            subscription_id: subscription.id,
+                            category_name: category.name,
+                        },
+                        ctx,
+                    )?;
+                }
+
+                // Remove subscription's items
+                diesel::delete(items.filter(subscription_id.eq(subscription.id)))
+                    .execute(self.conn.as_ref())?;
+
+                // Remove subscription
+                diesel::delete(subscriptions.find(subscription.id)).execute(self.conn.as_ref())?;
+            }
+
+            Ok(())
+        })
+    }
+}
+
+
 pub struct GetSubscription(pub db::Id);
 
 impl Message for GetSubscription {
