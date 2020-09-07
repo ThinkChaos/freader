@@ -1,9 +1,8 @@
 use actix_web::dev::HttpServiceFactory;
 use actix_web::{web, HttpResponse};
-use futures::TryFutureExt;
 use serde::{Deserialize, Serialize};
 
-use crate::db::models::{Category, NewItem};
+use crate::db::models::Category;
 use crate::prelude::*;
 
 pub fn service() -> impl HttpServiceFactory {
@@ -95,74 +94,13 @@ async fn quickadd(
     data: web::Data<AppData>,
     query: web::Query<QuickAddQuery>,
 ) -> actix_web::Result<HttpResponse> {
-    let mut db = data.db.clone();
-
-    let feed_bytes = reqwest::get(&query.url)
-        .and_then(|r| r.bytes())
-        .await
-        .map_err(|e| {
-            log::error!("{}", e);
-            HttpResponse::Ok().json(QuickAddErrorResponse {
-                query: &query.url,
-                num_results: 0,
-                error: "Could not fetch feed.",
-            })
-        })?;
-
-    let feed = feed_rs::parser::parse(feed_bytes.as_ref()).map_err(|e| {
-        log::error!("Parse error for {}: {}", query.url, e);
+    let subscription = data.feed_manager.subscribe(&query.url).await.map_err(|e| {
         HttpResponse::Ok().json(QuickAddErrorResponse {
             query: &query.url,
             num_results: 0,
-            error: "Could not parse content as a feed.",
+            error: e,
         })
     })?;
-
-    let title = feed
-        .title
-        .map(|t| t.content)
-        .unwrap_or_else(|| query.url.clone());
-
-    // Find the feed's site URL, if any
-    let site = feed
-        .links
-        .into_iter()
-        .find(|l| {
-            // (rel is alternate / missing) or (media_type is html / missing)
-            matches!(l.rel.as_ref().map(|s| s.as_str()), None | Some("alternate"))
-                || matches!(
-                    l.media_type.as_ref().map(|s| s.as_str()),
-                    None | Some("text/html")
-                )
-        })
-        .map(|l| l.href);
-
-    let subscription = db
-        .create_subscription(query.url.clone(), title, site)
-        .await?;
-
-    let mut any_ok = false;
-    for entry in &feed.entries {
-        let new_item = match NewItem::try_from(entry, &subscription) {
-            Ok(item) => item,
-            Err(e) => {
-                log::error!("{}", e);
-                log::debug!("{:#?}", entry);
-                continue;
-            }
-        };
-
-        any_ok = true;
-        db.create_item(new_item).await?;
-    }
-
-    if !any_ok && !feed.entries.is_empty() {
-        return Ok(HttpResponse::Ok().json(QuickAddErrorResponse {
-            query: &subscription.feed_url,
-            num_results: 0,
-            error: "None of the feed's items could be parsed.",
-        }));
-    }
 
     Ok(HttpResponse::Ok().json(QuickAddResponse {
         query: &subscription.feed_url,

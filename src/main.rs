@@ -9,10 +9,12 @@ pub mod appdata;
 pub mod auth;
 pub mod config;
 pub mod db;
+pub mod feed_manager;
 pub mod prelude;
 pub mod reader;
 pub mod utils;
 
+use feed_manager::FeedManager;
 use prelude::*;
 
 #[actix_rt::main]
@@ -32,13 +34,17 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-    let data = web::Data::new(match AppData::new(cfg.clone()) {
-        Ok(data) => data,
+    let db = match db::Helper::new(&cfg) {
+        Ok(db) => db,
         Err(err) => {
             log::error!("Database connection error: {}", err);
             std::process::exit(2);
         }
-    });
+    };
+
+    let feed_manager = FeedManager::new(db.clone());
+
+    let data = web::Data::new(AppData::new(cfg.clone(), db, feed_manager));
 
     // Start the HTTP server
     let mut server = HttpServer::new(move || {

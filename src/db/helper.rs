@@ -5,6 +5,7 @@ use std::fmt::{self, Display};
 use std::future::Future;
 
 use super::{executor::*, models::*, Id};
+use crate::config::Config;
 
 #[derive(Debug)]
 pub enum Error {
@@ -34,8 +35,16 @@ pub struct Helper {
 }
 
 impl Helper {
-    pub fn new(executor: Addr<Executor>) -> Self {
-        Helper { executor }
+    pub fn new(cfg: &Config) -> diesel::result::ConnectionResult<Self> {
+        // Test DB connection now
+        drop(Executor::connect(&cfg.sqlite_db)?);
+
+        let sqlite_db = cfg.sqlite_db.clone();
+        let executor = SyncArbiter::start(2, move || {
+            Executor::connect(&sqlite_db).expect("DB connection failed")
+        });
+
+        Ok(Helper { executor })
     }
 
     fn map<F, M>(future: F) -> impl DatabaseFuture<M>
@@ -50,15 +59,9 @@ impl Helper {
 
     pub fn create_subscription(
         &mut self,
-        feed_url: String,
-        title: String,
-        site_url: Option<String>,
+        new_subscription: NewSubscription,
     ) -> impl DatabaseFuture<Subscription> {
-        Self::map(self.executor.send(CreateSubscription {
-            feed_url,
-            title,
-            site_url,
-        }))
+        Self::map(self.executor.send(CreateSubscription(new_subscription)))
     }
 
     pub fn remove_subscription(&mut self, id: Id) -> impl DatabaseFuture<()> {

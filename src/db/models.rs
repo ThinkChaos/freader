@@ -13,10 +13,37 @@ pub struct Subscription {
 
 #[derive(Debug, Insertable)]
 #[table_name = "subscriptions"]
-pub struct NewSubscription<'a> {
-    pub feed_url: &'a str,
-    pub title: &'a str,
-    pub site_url: Option<&'a str>,
+pub struct NewSubscription {
+    pub feed_url: String,
+    pub title: String,
+    pub site_url: Option<String>,
+}
+
+impl NewSubscription {
+    pub fn try_from(url: &str, feed: &feed_rs::model::Feed) -> Result<Self, &'static str> {
+        let title = feed
+            .title
+            .as_ref()
+            .map(|t| t.content.clone())
+            .unwrap_or_else(|| url.to_owned());
+
+        // Find the feed's site URL, if any
+        let site_url = feed
+            .links
+            .iter()
+            .find(|l| {
+                // (rel is alternate / missing) or (media_type is html / missing)
+                matches!(l.rel.as_deref(), None | Some("alternate"))
+                    || matches!(l.media_type.as_deref(), None | Some("text/html"))
+            })
+            .map(|l| l.href.clone());
+
+        Ok(Self {
+            feed_url: url.to_owned(),
+            title,
+            site_url,
+        })
+    }
 }
 
 #[derive(Debug, Serialize, Identifiable, AsChangeset, Queryable)]

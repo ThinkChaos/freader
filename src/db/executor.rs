@@ -21,11 +21,7 @@ impl Actor for Executor {
 }
 
 
-pub struct CreateSubscription {
-    pub feed_url: String,
-    pub title: String,
-    pub site_url: Option<String>,
-}
+pub struct CreateSubscription(pub NewSubscription);
 
 impl Message for CreateSubscription {
     type Result = diesel::QueryResult<Subscription>;
@@ -35,17 +31,11 @@ impl Handler<CreateSubscription> for Executor {
     type Result = <CreateSubscription as Message>::Result;
 
     fn handle(&mut self, msg: CreateSubscription, _: &mut Self::Context) -> Self::Result {
-        let subscription = NewSubscription {
-            feed_url: &msg.feed_url,
-            title: &msg.title,
-            site_url: msg.site_url.as_ref().map(String::as_str),
-        };
-
         self.conn.transaction(|| {
             use schema::subscriptions::dsl::*;
 
             diesel::insert_into(subscriptions)
-                .values(&subscription)
+                .values(&msg.0)
                 .execute(self.conn.as_ref())?;
 
             subscriptions.order(id.desc()).first(self.conn.as_ref())
