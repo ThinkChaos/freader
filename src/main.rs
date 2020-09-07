@@ -10,6 +10,7 @@ pub mod auth;
 pub mod config;
 pub mod db;
 pub mod feed_manager;
+pub mod opml;
 pub mod prelude;
 pub mod reader;
 pub mod utils;
@@ -45,6 +46,10 @@ async fn main() -> std::io::Result<()> {
     let feed_manager = FeedManager::new(db.clone());
 
     let data = web::Data::new(AppData::new(cfg.clone(), db, feed_manager));
+
+    if let Some(ecode) = handle_cli_args(&data).await? {
+        std::process::exit(ecode);
+    }
 
     // Start the HTTP server
     let mut server = HttpServer::new(move || {
@@ -87,4 +92,43 @@ async fn main() -> std::io::Result<()> {
     }
 
     server.run().await
+}
+
+/// Parse and handle CLI args.
+///
+/// Returns an exit code if the program should stop,
+/// otherwise returns `None`.
+async fn handle_cli_args(data: &AppData) -> std::io::Result<Option<i32>> {
+    let mut args = std::env::args().into_iter().skip(1);
+
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "-h" | "--help" => {
+                print_usage();
+                return Ok(Some(0));
+            }
+            "--import" => {
+                let file = match args.next() {
+                    Some(x) => x,
+                    None => {
+                        eprintln!("Missing value for {}", arg);
+                        return Ok(Some(1));
+                    }
+                };
+
+                opml::import(&file, &mut data.db.clone()).await?;
+            }
+            _ => {
+                eprintln!("Unknown argument: {}", arg);
+                print_usage();
+                return Ok(Some(1));
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+fn print_usage() {
+    println!("USAGE: freader [-h | --help] [--import OPML]");
 }

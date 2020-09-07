@@ -12,7 +12,7 @@ pub mod models;
 mod schema;
 
 pub use executor::Executor;
-pub use helper::Helper;
+pub use helper::{Error, Helper};
 
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
