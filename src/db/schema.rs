@@ -11,7 +11,7 @@ table! {
         subscription_id -> Integer,
         url -> Text,
         title -> Text,
-        author -> Text,
+        author -> Nullable<Text>,
         published -> Timestamp,
         updated -> Timestamp,
         content -> Text,

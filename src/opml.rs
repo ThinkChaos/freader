@@ -3,6 +3,7 @@ use futures::future::LocalBoxFuture;
 
 use crate::db::models::NewSubscription;
 use crate::prelude::*;
+use crate::utils::make_url_absolute;
 
 /// Import feeds and categories from `file`.
 pub async fn import(file: &str, db: &mut db::Helper) -> std::io::Result<()> {
@@ -43,11 +44,15 @@ fn import_outlines<'a>(
                 }
             };
 
+            let site_url = outline
+                .html_url
+                .and_then(|url| make_url_absolute(&url, &feed_url).ok());
+
             let result = db
                 .create_subscription(NewSubscription {
                     feed_url: feed_url.clone(),
                     title: title.clone(),
-                    site_url: outline.html_url,
+                    site_url,
                     refreshed_at: chrono::Utc.timestamp(0, 0).naive_utc(),
                 })
                 .await;

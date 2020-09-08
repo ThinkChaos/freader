@@ -150,7 +150,7 @@ async fn item_contents(
         .map(|(item, subscription)| ItemContentsResponseItem {
             id: ItemId(item.id),
             title: &item.title,
-            author: &item.author,
+            author: item.author.as_deref().unwrap_or(""),
             published: item.published.timestamp(),
             updated: item.updated.timestamp(),
             timestamp_usec: (item.published.timestamp() * 1_000_000
