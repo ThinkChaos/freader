@@ -90,6 +90,19 @@ impl Helper {
         })
     }
 
+    pub fn find_outdated_subscriptions(
+        &mut self,
+        updated_before: chrono::DateTime<chrono::Utc>,
+    ) -> impl DatabaseFuture<Vec<Subscription>> {
+        self.find_all(move || {
+            use schema::subscriptions::dsl::*;
+
+            let updated_before = updated_before.naive_utc();
+
+            subscriptions.filter(refreshed_at.le(updated_before))
+        })
+    }
+
     pub fn update_subscription(
         &mut self,
         subscription: Subscription,
@@ -180,6 +193,16 @@ impl Helper {
             }
 
             query.limit(max_items as i64)
+        })
+    }
+
+    pub fn get_subscription_items(
+        &mut self,
+        subscription_id_: Id,
+    ) -> impl DatabaseFuture<Vec<Item>> {
+        self.find_all(move || {
+            use schema::items::dsl::*;
+            items.filter(subscription_id.eq(subscription_id_))
         })
     }
 }

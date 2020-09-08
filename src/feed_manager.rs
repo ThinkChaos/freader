@@ -31,9 +31,32 @@ impl FeedManager {
             .await
             .unwrap();
 
-        self.store_entries(&subscription, feed.entries).await?;
+        self.store_new_entries(&subscription, feed.entries).await?;
 
         Ok(subscription)
+    }
+
+    /// Fetch feed and store new items.
+    ///
+    /// Result is the number of new items.
+    pub async fn refresh(&self, subscription: &mut Subscription) -> Result<usize, &'static str> {
+        let fetch_time = chrono::Local::now();
+        let feed = self.fetch(&subscription.feed_url).await?;
+
+        let count = self.store_new_entries(&subscription, feed.entries).await?;
+
+        // Update the subscription's refresh time
+        let mut db = self.db.clone();
+        subscription.refreshed_at = fetch_time.naive_utc();
+        *subscription = db
+            .update_subscription(subscription.clone())
+            .await
+            .map_err(|e| {
+                log::error!("Could not update subscription in db: {}", e);
+                "Database error."
+            })?;
+
+        Ok(count)
     }
 
     async fn fetch(&self, url: &str) -> Result<Feed, &'static str> {
@@ -54,13 +77,20 @@ impl FeedManager {
         })
     }
 
-    async fn store_entries(
+    async fn store_new_entries(
         &self,
         subscription: &Subscription,
         entries: Vec<Entry>,
     ) -> Result<usize, &'static str> {
         let mut db = self.db.clone();
 
+        let existing = db.get_subscription_items(subscription.id).await.unwrap();
+        let existing = existing
+            .iter()
+            .map(|item| (item.title.as_str(), item.url.as_str()))
+            .collect::<std::collections::HashSet<_>>();
+
+        let mut any_ok = false;
         let mut count = 0;
         for entry in &entries {
             let new_item = match NewItem::try_from(entry, &subscription) {
@@ -72,14 +102,21 @@ impl FeedManager {
                 }
             };
 
+            any_ok = true;
+
+            if existing.contains(&(new_item.title.as_str(), new_item.url.as_str())) {
+                log::trace!("Ignoring existing item: {}", new_item.title);
+                continue;
+            }
+
             count += 1;
             db.create_item(new_item).await.map_err(|e| {
-                log::error!("{}", e);
+                log::error!("Could not store item: {}", e);
                 "Database error."
             })?;
         }
 
-        if count > 0 || entries.is_empty() {
+        if any_ok || entries.is_empty() {
             Ok(count)
         } else {
             Err("No entry could be parsed.")

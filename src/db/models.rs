@@ -3,13 +3,19 @@ use serde::Serialize;
 use super::schema::*;
 use crate::db;
 
-#[derive(Debug, Serialize, Identifiable, AsChangeset, Queryable)]
+#[derive(Debug, Clone, Serialize, Identifiable, AsChangeset, Queryable)]
 pub struct Subscription {
     pub id: db::Id,
     pub feed_url: String,
     pub title: String,
     pub site_url: Option<String>,
     pub refreshed_at: chrono::NaiveDateTime,
+}
+
+impl std::fmt::Display for Subscription {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} ({})", self.title, self.feed_url)
+    }
 }
 
 #[derive(Debug, Insertable)]
@@ -55,7 +61,7 @@ impl NewSubscription {
     }
 }
 
-#[derive(Debug, Serialize, Identifiable, AsChangeset, Queryable)]
+#[derive(Debug, Clone, Serialize, Identifiable, AsChangeset, Queryable)]
 #[table_name = "categories"]
 pub struct Category {
     pub id: db::Id,
@@ -68,7 +74,7 @@ pub struct NewCategory<'a> {
     pub name: &'a str,
 }
 
-#[derive(Debug, Serialize, AsChangeset, Queryable)]
+#[derive(Debug, Clone, Serialize, AsChangeset, Queryable)]
 #[table_name = "subscription_categories"]
 pub struct SubscriptionCategory {
     pub subscription_id: db::Id,
@@ -82,7 +88,7 @@ pub struct NewSubscriptionCategory<'a> {
     pub category_id: &'a db::Id,
 }
 
-#[derive(Debug, Serialize, Identifiable, AsChangeset, Queryable)]
+#[derive(Debug, Clone, Serialize, Identifiable, AsChangeset, Queryable)]
 pub struct Item {
     pub id: db::Id,
     pub subscription_id: db::Id,

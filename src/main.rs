@@ -3,6 +3,7 @@
 #[macro_use]
 extern crate diesel;
 
+use actix::Actor;
 use actix_web::{middleware, web, App, HttpServer};
 
 pub mod appdata;
@@ -13,10 +14,12 @@ pub mod feed_manager;
 pub mod opml;
 pub mod prelude;
 pub mod reader;
+pub mod updater;
 pub mod utils;
 
 use feed_manager::FeedManager;
 use prelude::*;
+use updater::Updater;
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
@@ -44,6 +47,9 @@ async fn main() -> std::io::Result<()> {
     };
 
     let feed_manager = FeedManager::new(db.clone());
+
+    let updater = Updater::new(db.clone(), feed_manager.clone());
+    updater.start();
 
     let data = web::Data::new(AppData::new(cfg.clone(), db, feed_manager));
 
