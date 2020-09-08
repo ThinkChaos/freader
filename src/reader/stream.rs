@@ -227,7 +227,7 @@ impl TryFrom<String> for StreamId {
 }
 
 
-pub const LONG_ITEM_ID_PREFIX: &'static str = "tag:google.com,2005:reader/item/";
+pub const LONG_ITEM_ID_PREFIX: &str = "tag:google.com,2005:reader/item/";
 
 /// An item is an entry in a feed.
 ///

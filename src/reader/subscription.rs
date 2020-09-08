@@ -159,7 +159,7 @@ async fn edit(
     Ok(HttpResponse::Ok().body("OK"))
 }
 
-pub const SUBSCRIPTION_ID_PREFIX: &'static str = "feed/";
+pub const SUBSCRIPTION_ID_PREFIX: &str = "feed/";
 
 /// A subscription is a feed.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -190,7 +190,7 @@ impl std::convert::TryFrom<String> for SubscriptionId {
 }
 
 
-pub const LABEL_ID_PREFIX: &'static str = "user/-/label/";
+pub const LABEL_ID_PREFIX: &str = "user/-/label/";
 
 /// A label identifies a folder or a tag.
 #[derive(Debug, Clone, Deserialize, Serialize)]

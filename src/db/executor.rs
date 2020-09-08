@@ -1,5 +1,6 @@
 use actix::prelude::*;
 use diesel::prelude::*;
+use diesel::query_dsl::LoadQuery;
 use std::rc::Rc;
 
 use crate::db::{self, models::*, schema};
@@ -25,12 +26,12 @@ impl Actor for Executor {
 pub struct FindAll<F, Q, T>(F, std::marker::PhantomData<T>)
 where
     F: FnOnce() -> Q,
-    Q: diesel::query_dsl::LoadQuery<SqliteConnection, T>;
+    Q: LoadQuery<SqliteConnection, T>;
 
 impl<F, Q, T> FindAll<F, Q, T>
 where
     F: FnOnce() -> Q,
-    Q: diesel::query_dsl::LoadQuery<SqliteConnection, T>,
+    Q: LoadQuery<SqliteConnection, T>,
 {
     pub fn new(query_builder: F) -> Self {
         Self(query_builder, Default::default())
@@ -40,16 +41,16 @@ where
 impl<F, Q, T> Message for FindAll<F, Q, T>
 where
     F: FnOnce() -> Q,
-    Q: diesel::query_dsl::LoadQuery<SqliteConnection, T>,
+    Q: LoadQuery<SqliteConnection, T>,
     T: 'static,
 {
-    type Result = diesel::QueryResult<Vec<T>>;
+    type Result = QueryResult<Vec<T>>;
 }
 
 impl<F, Q, T> Handler<FindAll<F, Q, T>> for Executor
 where
     F: FnOnce() -> Q,
-    Q: diesel::query_dsl::LoadQuery<SqliteConnection, T>,
+    Q: LoadQuery<SqliteConnection, T>,
     T: 'static,
 {
     type Result = <FindAll<F, Q, T> as Message>::Result;
@@ -65,7 +66,7 @@ where
 pub struct CreateSubscription(pub NewSubscription);
 
 impl Message for CreateSubscription {
-    type Result = diesel::QueryResult<Subscription>;
+    type Result = QueryResult<Subscription>;
 }
 
 impl Handler<CreateSubscription> for Executor {
@@ -88,7 +89,7 @@ impl Handler<CreateSubscription> for Executor {
 pub struct RemoveSubscription(pub db::Id);
 
 impl Message for RemoveSubscription {
-    type Result = diesel::QueryResult<()>;
+    type Result = QueryResult<()>;
 }
 
 impl Handler<RemoveSubscription> for Executor {
@@ -129,7 +130,7 @@ impl Handler<RemoveSubscription> for Executor {
 pub struct GetSubscription(pub db::Id);
 
 impl Message for GetSubscription {
-    type Result = diesel::QueryResult<Subscription>;
+    type Result = QueryResult<Subscription>;
 }
 
 impl Handler<GetSubscription> for Executor {
@@ -146,7 +147,7 @@ impl Handler<GetSubscription> for Executor {
 pub struct UpdateSubscription(pub Subscription);
 
 impl Message for UpdateSubscription {
-    type Result = diesel::QueryResult<Subscription>;
+    type Result = QueryResult<Subscription>;
 }
 
 impl Handler<UpdateSubscription> for Executor {
@@ -166,7 +167,7 @@ impl Handler<UpdateSubscription> for Executor {
 pub struct TransformSubscription(pub db::Id, pub Box<dyn FnOnce(&mut Subscription) + Send>);
 
 impl Message for TransformSubscription {
-    type Result = diesel::QueryResult<Subscription>;
+    type Result = QueryResult<Subscription>;
 }
 
 impl Handler<TransformSubscription> for Executor {
@@ -191,7 +192,7 @@ pub struct CreateCategory {
 }
 
 impl Message for CreateCategory {
-    type Result = diesel::QueryResult<Category>;
+    type Result = QueryResult<Category>;
 }
 
 impl Handler<CreateCategory> for Executor {
@@ -216,7 +217,7 @@ impl Handler<CreateCategory> for Executor {
 pub struct GetCategory(pub db::Id);
 
 impl Message for GetCategory {
-    type Result = diesel::QueryResult<Category>;
+    type Result = QueryResult<Category>;
 }
 
 impl Handler<GetCategory> for Executor {
@@ -233,7 +234,7 @@ impl Handler<GetCategory> for Executor {
 pub struct GetCategoryByName(pub String);
 
 impl Message for GetCategoryByName {
-    type Result = diesel::QueryResult<Option<Category>>;
+    type Result = QueryResult<Option<Category>>;
 }
 
 impl Handler<GetCategoryByName> for Executor {
@@ -258,7 +259,7 @@ pub struct GetOrCreateCategory {
 }
 
 impl Message for GetOrCreateCategory {
-    type Result = diesel::QueryResult<Category>;
+    type Result = QueryResult<Category>;
 }
 
 impl Handler<GetOrCreateCategory> for Executor {
@@ -280,7 +281,7 @@ pub struct SubscriptionAddCategory {
 }
 
 impl Message for SubscriptionAddCategory {
-    type Result = diesel::QueryResult<Category>;
+    type Result = QueryResult<Category>;
 }
 
 impl Handler<SubscriptionAddCategory> for Executor {
@@ -323,7 +324,7 @@ pub struct SubscriptionRemoveCategory {
 }
 
 impl Message for SubscriptionRemoveCategory {
-    type Result = diesel::QueryResult<()>;
+    type Result = QueryResult<()>;
 }
 
 impl Handler<SubscriptionRemoveCategory> for Executor {
@@ -365,7 +366,7 @@ impl Handler<SubscriptionRemoveCategory> for Executor {
 pub struct GetSubscriptionCategories(pub db::Id);
 
 impl Message for GetSubscriptionCategories {
-    type Result = diesel::QueryResult<Vec<Category>>;
+    type Result = QueryResult<Vec<Category>>;
 }
 
 impl Handler<GetSubscriptionCategories> for Executor {
@@ -387,7 +388,7 @@ impl Handler<GetSubscriptionCategories> for Executor {
 pub struct CreateItem(pub NewItem);
 
 impl Message for CreateItem {
-    type Result = diesel::QueryResult<Item>;
+    type Result = QueryResult<Item>;
 }
 
 impl Handler<CreateItem> for Executor {

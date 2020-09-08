@@ -47,7 +47,9 @@ where
     }
 
     fn call(&mut self, req: Self::Request) -> Self::Future {
-        let app_data = req.app_data::<AppData>().unwrap();
+        let app_data = req
+            .app_data::<AppData>()
+            .expect("Could not extract AppData");
 
         let authorized = req
             .headers()
