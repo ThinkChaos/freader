@@ -33,6 +33,7 @@ table! {
         feed_url -> Text,
         title -> Text,
         site_url -> Nullable<Text>,
+        refreshed_at -> Timestamp,
     }
 }
 

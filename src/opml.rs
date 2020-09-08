@@ -48,6 +48,7 @@ fn import_outlines<'a>(
                     feed_url: feed_url.clone(),
                     title: title.clone(),
                     site_url: outline.html_url,
+                    refreshed_at: chrono::Utc.timestamp(0, 0).naive_utc(),
                 })
                 .await;
 

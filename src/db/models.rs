@@ -9,6 +9,7 @@ pub struct Subscription {
     pub feed_url: String,
     pub title: String,
     pub site_url: Option<String>,
+    pub refreshed_at: chrono::NaiveDateTime,
 }
 
 #[derive(Debug, Insertable)]
@@ -17,6 +18,7 @@ pub struct NewSubscription {
     pub feed_url: String,
     pub title: String,
     pub site_url: Option<String>,
+    pub refreshed_at: chrono::NaiveDateTime,
 }
 
 impl NewSubscription {
@@ -38,10 +40,17 @@ impl NewSubscription {
             })
             .map(|l| l.href.clone());
 
+        let refreshed_at = feed
+            .updated
+            .as_ref()
+            .unwrap_or(&chrono::Utc::now())
+            .naive_utc();
+
         Ok(Self {
             feed_url: url.to_owned(),
             title,
             site_url,
+            refreshed_at,
         })
     }
 }
