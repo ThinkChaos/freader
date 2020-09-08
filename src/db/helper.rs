@@ -1,10 +1,11 @@
 use actix::prelude::*;
 use actix_web::ResponseError;
+use diesel::prelude::*;
 use futures::future::{self, TryFutureExt};
 use std::fmt::{self, Display};
 use std::future::Future;
 
-use super::{executor::*, models::*, Id};
+use super::{executor::*, models::*, schema, Id};
 use crate::config::Config;
 
 #[derive(Debug)]
@@ -57,6 +58,15 @@ impl Helper {
         })
     }
 
+    fn find_all<F, Q, T>(&mut self, query_builder: F) -> impl DatabaseFuture<Vec<T>>
+    where
+        F: 'static + FnOnce() -> Q + Send,
+        Q: 'static + diesel::query_dsl::LoadQuery<diesel::SqliteConnection, T>,
+        T: 'static + Send,
+    {
+        Self::map(self.executor.send(FindAll::new(query_builder)))
+    }
+
     pub fn create_subscription(
         &mut self,
         new_subscription: NewSubscription,
@@ -73,7 +83,11 @@ impl Helper {
     }
 
     pub fn get_subscriptions(&mut self) -> impl DatabaseFuture<Vec<Subscription>> {
-        Self::map(self.executor.send(GetSubscriptions))
+        self.find_all(|| {
+            use schema::subscriptions::dsl::*;
+
+            subscriptions
+        })
     }
 
     pub fn update_subscription(
@@ -135,9 +149,15 @@ impl Helper {
 
     pub fn get_items_and_subscriptions(
         &mut self,
-        ids: Vec<Id>,
+        item_ids: Vec<Id>,
     ) -> impl DatabaseFuture<Vec<(Item, Subscription)>> {
-        Self::map(self.executor.send(GetItemsAndSubscriptions(ids)))
+        self.find_all(move || {
+            use schema::items::dsl::*;
+
+            items
+                .filter(id.eq_any(item_ids))
+                .inner_join(schema::subscriptions::table)
+        })
     }
 
     pub fn find_items(
@@ -146,10 +166,20 @@ impl Helper {
         starred: Option<bool>,
         max_items: usize,
     ) -> impl DatabaseFuture<Vec<Item>> {
-        Self::map(self.executor.send(FindItems {
-            read,
-            starred,
-            max_items,
-        }))
+        self.find_all(move || {
+            use schema::items::dsl::*;
+
+            let mut query = items.into_boxed();
+
+            if let Some(val) = read {
+                query = query.filter(is_read.eq(val));
+            }
+
+            if let Some(val) = starred {
+                query = query.filter(is_starred.eq(val));
+            }
+
+            query.limit(max_items as i64)
+        })
     }
 }

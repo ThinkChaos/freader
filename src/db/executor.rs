@@ -21,6 +21,47 @@ impl Actor for Executor {
 }
 
 
+/// Message containing a query builder to be executed with `.load`.
+pub struct FindAll<F, Q, T>(F, std::marker::PhantomData<T>)
+where
+    F: FnOnce() -> Q,
+    Q: diesel::query_dsl::LoadQuery<SqliteConnection, T>;
+
+impl<F, Q, T> FindAll<F, Q, T>
+where
+    F: FnOnce() -> Q,
+    Q: diesel::query_dsl::LoadQuery<SqliteConnection, T>,
+{
+    pub fn new(query_builder: F) -> Self {
+        Self(query_builder, Default::default())
+    }
+}
+
+impl<F, Q, T> Message for FindAll<F, Q, T>
+where
+    F: FnOnce() -> Q,
+    Q: diesel::query_dsl::LoadQuery<SqliteConnection, T>,
+    T: 'static,
+{
+    type Result = diesel::QueryResult<Vec<T>>;
+}
+
+impl<F, Q, T> Handler<FindAll<F, Q, T>> for Executor
+where
+    F: FnOnce() -> Q,
+    Q: diesel::query_dsl::LoadQuery<SqliteConnection, T>,
+    T: 'static,
+{
+    type Result = <FindAll<F, Q, T> as Message>::Result;
+
+    fn handle(&mut self, msg: FindAll<F, Q, T>, _: &mut Self::Context) -> Self::Result {
+        let query = msg.0();
+
+        query.load(self.conn.as_ref())
+    }
+}
+
+
 pub struct CreateSubscription(pub NewSubscription);
 
 impl Message for CreateSubscription {
@@ -98,23 +139,6 @@ impl Handler<GetSubscription> for Executor {
         use schema::subscriptions::dsl::*;
 
         subscriptions.find(msg.0).get_result(self.conn.as_ref())
-    }
-}
-
-
-pub struct GetSubscriptions;
-
-impl Message for GetSubscriptions {
-    type Result = diesel::QueryResult<Vec<Subscription>>;
-}
-
-impl Handler<GetSubscriptions> for Executor {
-    type Result = <GetSubscriptions as Message>::Result;
-
-    fn handle(&mut self, _: GetSubscriptions, _: &mut Self::Context) -> Self::Result {
-        use schema::subscriptions::dsl::*;
-
-        subscriptions.load(self.conn.as_ref())
     }
 }
 
@@ -379,56 +403,5 @@ impl Handler<CreateItem> for Executor {
 
             items.order(id.desc()).first(self.conn.as_ref())
         })
-    }
-}
-
-
-pub struct GetItemsAndSubscriptions(pub Vec<db::Id>);
-
-impl Message for GetItemsAndSubscriptions {
-    type Result = diesel::QueryResult<Vec<(Item, Subscription)>>;
-}
-
-impl Handler<GetItemsAndSubscriptions> for Executor {
-    type Result = <GetItemsAndSubscriptions as Message>::Result;
-
-    fn handle(&mut self, msg: GetItemsAndSubscriptions, _: &mut Self::Context) -> Self::Result {
-        use schema::items::dsl::*;
-
-        items
-            .filter(id.eq_any(msg.0))
-            .inner_join(schema::subscriptions::table)
-            .load(self.conn.as_ref())
-    }
-}
-
-
-pub struct FindItems {
-    pub read: Option<bool>,
-    pub starred: Option<bool>,
-    pub max_items: usize,
-}
-
-impl Message for FindItems {
-    type Result = diesel::QueryResult<Vec<Item>>;
-}
-
-impl Handler<FindItems> for Executor {
-    type Result = <FindItems as Message>::Result;
-
-    fn handle(&mut self, msg: FindItems, _: &mut Self::Context) -> Self::Result {
-        use schema::items::dsl::*;
-
-        let mut query = items.into_boxed();
-
-        if let Some(val) = msg.read {
-            query = query.filter(is_read.eq(val));
-        }
-
-        if let Some(val) = msg.starred {
-            query = query.filter(is_starred.eq(val));
-        }
-
-        query.limit(msg.max_items as i64).load(self.conn.as_ref())
     }
 }
