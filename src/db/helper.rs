@@ -160,6 +160,10 @@ impl Helper {
         Self::map(self.executor.send(CreateItem(new_item)))
     }
 
+    pub fn get_item(&mut self, id: Id) -> impl DatabaseFuture<Item> {
+        Self::map(self.executor.send(GetItem(id)))
+    }
+
     pub fn get_items_and_subscriptions(
         &mut self,
         item_ids: Vec<Id>,
@@ -171,6 +175,10 @@ impl Helper {
                 .filter(id.eq_any(item_ids))
                 .inner_join(schema::subscriptions::table)
         })
+    }
+
+    pub fn update_item(&mut self, item: Item) -> impl DatabaseFuture<Item> {
+        Self::map(self.executor.send(UpdateItem(item)))
     }
 
     pub fn find_items(

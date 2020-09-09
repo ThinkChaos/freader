@@ -406,3 +406,40 @@ impl Handler<CreateItem> for Executor {
         })
     }
 }
+
+
+pub struct GetItem(pub db::Id);
+
+impl Message for GetItem {
+    type Result = QueryResult<Item>;
+}
+
+impl Handler<GetItem> for Executor {
+    type Result = <GetItem as Message>::Result;
+
+    fn handle(&mut self, msg: GetItem, _: &mut Self::Context) -> Self::Result {
+        use schema::items::dsl::*;
+
+        items.find(msg.0).get_result(self.conn.as_ref())
+    }
+}
+
+
+pub struct UpdateItem(pub Item);
+
+impl Message for UpdateItem {
+    type Result = QueryResult<Item>;
+}
+
+impl Handler<UpdateItem> for Executor {
+    type Result = <UpdateItem as Message>::Result;
+
+    fn handle(&mut self, msg: UpdateItem, _: &mut Self::Context) -> Self::Result {
+        let item = msg.0;
+
+        diesel::update(&item)
+            .set(&item)
+            .execute(self.conn.as_ref())
+            .map(|_| item)
+    }
+}
