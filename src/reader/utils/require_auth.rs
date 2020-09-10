@@ -1,11 +1,14 @@
 use actix_service::{Service, Transform};
-use actix_web::{http::header, HttpResponse};
+use actix_web::{
+    dev::{ServiceRequest, ServiceResponse},
+    http::header,
+    HttpResponse,
+};
 use futures::future::{self, Either, Ready};
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use crate::utils::HttpService;
 use crate::AppData;
 
 pub struct RequireAuth;
@@ -16,7 +19,11 @@ pub struct RequireAuthMiddleware<S> {
 
 impl<S> Transform<S> for RequireAuth
 where
-    S: HttpService,
+    S: Service<
+        Request = ServiceRequest,
+        Response = ServiceResponse<actix_http::body::Body>,
+        Error = actix_web::Error,
+    >,
     S::Future: 'static,
 {
     type Request = <S as Service>::Request;
@@ -33,7 +40,11 @@ where
 
 impl<S> Service for RequireAuthMiddleware<S>
 where
-    S: HttpService,
+    S: Service<
+        Request = ServiceRequest,
+        Response = ServiceResponse<actix_http::body::Body>,
+        Error = actix_web::Error,
+    >,
     S::Future: 'static + Sized,
 {
     type Request = <S as Service>::Request;
