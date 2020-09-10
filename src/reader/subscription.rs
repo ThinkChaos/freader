@@ -164,7 +164,7 @@ pub const SUBSCRIPTION_ID_PREFIX: &str = "feed/";
 /// A subscription is a feed.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[derive(Hash, Eq, PartialEq)]
-#[serde(into = "String", try_from = "String")]
+#[serde(into = "String", try_from = "&str")]
 pub struct SubscriptionId(pub db::Id);
 
 impl std::convert::Into<String> for SubscriptionId {
@@ -173,10 +173,10 @@ impl std::convert::Into<String> for SubscriptionId {
     }
 }
 
-impl std::convert::TryFrom<String> for SubscriptionId {
+impl<'a> std::convert::TryFrom<&'a str> for SubscriptionId {
     type Error = String;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
         if value.starts_with(SUBSCRIPTION_ID_PREFIX) {
             Ok(Self(
                 value[SUBSCRIPTION_ID_PREFIX.len()..]
@@ -195,7 +195,7 @@ pub const LABEL_ID_PREFIX: &str = "user/-/label/";
 /// A label identifies a folder or a tag.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[derive(Hash, Eq, PartialEq)]
-#[serde(into = "String", try_from = "String")]
+#[serde(into = "String", try_from = "&str")]
 pub struct LabelId(pub String);
 
 impl std::convert::Into<String> for LabelId {
@@ -204,10 +204,10 @@ impl std::convert::Into<String> for LabelId {
     }
 }
 
-impl std::convert::TryFrom<String> for LabelId {
+impl<'a> std::convert::TryFrom<&'a str> for LabelId {
     type Error = String;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
         if value.starts_with(LABEL_ID_PREFIX) {
             Ok(Self(value[LABEL_ID_PREFIX.len()..].to_owned()))
         } else {

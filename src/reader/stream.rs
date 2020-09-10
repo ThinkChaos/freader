@@ -134,7 +134,7 @@ async fn item_contents(
         let mut ids = Vec::with_capacity(form.len());
         for (k, v) in form.iter() {
             if k == "i" {
-                match ItemId::try_from(v.to_owned()) {
+                match ItemId::try_from(v.as_str()) {
                     Ok(id) => ids.push(id.0),
                     Err(_) => return Ok(HttpResponse::BadRequest().body("Invalid item ID")),
                 }
@@ -179,7 +179,7 @@ async fn item_contents(
 /// A Stream represents a set of items.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[derive(Hash, Eq, PartialEq)]
-#[serde(into = "String", try_from = "String")]
+#[serde(into = "String", try_from = "&str")]
 pub enum StreamId {
     /// All unread items.
     Unread,
@@ -207,19 +207,19 @@ impl std::convert::Into<String> for StreamId {
     }
 }
 
-impl TryFrom<String> for StreamId {
+impl<'a> TryFrom<&'a str> for StreamId {
     type Error = String;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
         use StreamId::*;
 
-        Ok(match value.as_str() {
+        Ok(match value {
             "user/-/state/com.google/reading-list" => Unread,
             "user/-/state/com.google/read" => Read,
             "user/-/state/com.google/starred" => Starred,
             s if s.starts_with(LABEL_ID_PREFIX) => UserLabel(LabelId::try_from(value)?),
             s if s.starts_with(SUBSCRIPTION_ID_PREFIX) => {
-                Subscription(SubscriptionId::try_from(value.to_owned())?)
+                Subscription(SubscriptionId::try_from(value)?)
             }
             _ => return Err(format!("Invalid stream ID: {}", value)),
         })
@@ -235,13 +235,13 @@ pub const LONG_ITEM_ID_PREFIX: &str = "tag:google.com,2005:reader/item/";
 /// the long form is specified on each struct field using: `serialize_with`.
 #[derive(Debug, Clone, Deserialize)]
 #[derive(Hash, Eq, PartialEq)]
-#[serde(try_from = "String")]
+#[serde(try_from = "&str")]
 pub struct ItemId(pub db::Id);
 
-impl TryFrom<String> for ItemId {
+impl<'a> TryFrom<&'a str> for ItemId {
     type Error = String;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
         let (base, value) = match value {
             // Long form with prefix
             _ if value.starts_with(LONG_ITEM_ID_PREFIX) => {
@@ -250,9 +250,9 @@ impl TryFrom<String> for ItemId {
             // Long form without prefix: hex, 0 padded to 16 chars
             // Note: a base 10 number with 16 digits is too big to fit an i32,
             // so this must be hex.
-            _ if value.len() == 16 => (16, value.as_str()),
+            _ if value.len() == 16 => (16, value),
             // Short form: base 10 number
-            _ => (10, value.as_str()),
+            _ => (10, value),
         };
 
         i32::from_str_radix(value, base)

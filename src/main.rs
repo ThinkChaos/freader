@@ -63,7 +63,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::default())
             .service(auth::service())
             .service(reader::service())
-            .default_service(actix_web::web::route().to(
+            .default_service(web::route().to(
                 |_req: actix_web::HttpRequest, _body: actix_web::web::Bytes| {
                     #[cfg(feature = "dev")]
                     utils::dump_request_and_body(&_req, &_body);
