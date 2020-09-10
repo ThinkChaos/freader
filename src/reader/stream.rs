@@ -18,6 +18,10 @@ struct ItemIdsQuery {
     stream: StreamId,
     #[serde(rename = "xt")]
     exclude: Option<StreamId>,
+    #[serde(rename = "ot", default, with = "chrono::serde::ts_seconds_option")]
+    min_date: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(rename = "nt", default, with = "chrono::serde::ts_seconds_option")]
+    max_date: Option<chrono::DateTime<chrono::Utc>>,
     #[serde(rename = "n")]
     count: usize,
 }
@@ -62,7 +66,12 @@ async fn item_ids(
         _ => None,
     };
 
-    let items = db.find_items(is_read, is_starred, query.count).await?;
+    let min_date = query.min_date.map(|dt| dt.naive_utc());
+    let max_date = query.max_date.map(|dt| dt.naive_utc());
+
+    let items = db
+        .find_items(is_read, is_starred, min_date, max_date, query.count)
+        .await?;
     let item_refs = items
         .into_iter()
         .map(|item| ItemIdsResponseItem {

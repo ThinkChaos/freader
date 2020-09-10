@@ -185,6 +185,8 @@ impl Helper {
         &mut self,
         read: Option<bool>,
         starred: Option<bool>,
+        min_date: Option<chrono::NaiveDateTime>,
+        max_date: Option<chrono::NaiveDateTime>,
         max_items: usize,
     ) -> impl DatabaseFuture<Vec<Item>> {
         self.find_all(move || {
@@ -198,6 +200,14 @@ impl Helper {
 
             if let Some(val) = starred {
                 query = query.filter(is_starred.eq(val));
+            }
+
+            if let Some(val) = min_date {
+                query = query.filter(published.ge(val));
+            }
+
+            if let Some(val) = max_date {
+                query = query.filter(published.le(val));
             }
 
             query.limit(max_items as i64)
