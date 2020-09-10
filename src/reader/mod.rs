@@ -1,8 +1,5 @@
-use actix_web::dev::HttpServiceFactory;
-use actix_web::web;
-
-use actix_web::HttpResponse;
-use serde::Deserialize;
+use actix_web::{dev::HttpServiceFactory, web, HttpResponse};
+use std::convert::TryFrom;
 
 use crate::prelude::*;
 use stream::{ItemId, StreamId};
@@ -21,37 +18,51 @@ pub fn service() -> impl HttpServiceFactory {
         .route("/edit-tag", web::post().to(edit_tag))
 }
 
-#[derive(Debug, Deserialize)]
-struct EditTagForm {
-    #[serde(rename = "i")]
-    item_id: ItemId,
-    #[serde(rename = "a")]
-    add_tag: Option<StreamId>,
-    #[serde(rename = "r")]
-    remove_tag: Option<StreamId>,
-}
-
 async fn edit_tag(
     data: web::Data<AppData>,
-    form: web::Form<EditTagForm>,
+    form: web::Form<Vec<(String, String)>>,
 ) -> actix_web::Result<HttpResponse> {
-    let mut db = data.db.clone();
+    let mut item_ids = Vec::with_capacity(form.len());
 
-    let mut item = db.get_item(form.item_id.0).await?;
+    let mut new_is_read = None;
+    let mut new_is_starred = None;
 
-    match form.add_tag {
-        Some(StreamId::Read) => item.is_read = true,
-        Some(StreamId::Starred) => item.is_starred = true,
-        _ => (),
+    // Manually parse form because i can be repeated
+    for (k, v) in form.into_inner() {
+        match k.as_str() {
+            "i" => {
+                let id = ItemId::try_from(v.as_str()).map_err(|e| {
+                    HttpResponse::BadRequest().body(format!("Invalid item id {}: {}", v, e))
+                })?;
+                item_ids.push(id);
+            }
+            "a" | "r" => {
+                let id = StreamId::try_from(v.as_str()).map_err(|e| {
+                    HttpResponse::BadRequest().body(format!("Invalid stream id {}: {}", v, e))
+                })?;
+                match id {
+                    StreamId::Read => new_is_read = Some(k == "a"),
+                    StreamId::Unread => new_is_read = Some(k != "a"),
+                    StreamId::Starred => new_is_starred = Some(k == "a"),
+                    _ => (),
+                }
+            }
+            _ => continue,
+        }
     }
 
-    match form.remove_tag {
-        Some(StreamId::Read) => item.is_read = false,
-        Some(StreamId::Starred) => item.is_starred = false,
-        _ => (),
-    }
+    if new_is_read.is_some() || new_is_starred.is_some() {
+        let mut db = data.db.clone();
 
-    db.update_item(item).await?;
+        for item_id in item_ids {
+            let mut item = db.get_item(item_id.0).await?;
+
+            item.is_read = new_is_read.unwrap_or(item.is_read);
+            item.is_starred = new_is_starred.unwrap_or(item.is_starred);
+
+            db.update_item(item).await?;
+        }
+    }
 
     Ok(HttpResponse::Ok().body("OK"))
 }
