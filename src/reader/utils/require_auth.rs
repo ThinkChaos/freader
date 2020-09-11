@@ -1,6 +1,6 @@
 use actix_service::{Service, Transform};
 use actix_web::{
-    dev::{ServiceRequest, ServiceResponse},
+    dev::{Body, ServiceRequest, ServiceResponse},
     http::header,
     HttpResponse,
 };
@@ -21,7 +21,7 @@ impl<S> Transform<S> for RequireAuth
 where
     S: Service<
         Request = ServiceRequest,
-        Response = ServiceResponse<actix_http::body::Body>,
+        Response = ServiceResponse<Body>,
         Error = actix_web::Error,
     >,
     S::Future: 'static,
@@ -42,7 +42,7 @@ impl<S> Service for RequireAuthMiddleware<S>
 where
     S: Service<
         Request = ServiceRequest,
-        Response = ServiceResponse<actix_http::body::Body>,
+        Response = ServiceResponse<Body>,
         Error = actix_web::Error,
     >,
     S::Future: 'static + Sized,

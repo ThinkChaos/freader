@@ -19,7 +19,7 @@ use feed_manager::FeedManager;
 use prelude::*;
 use updater::Updater;
 
-#[actix_rt::main]
+#[actix_web::main]
 async fn main() -> std::io::Result<()> {
     if let Err(err) = dotenv::from_filename("freader.env") {
         eprintln!("{}", err);

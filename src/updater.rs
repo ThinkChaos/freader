@@ -68,7 +68,7 @@ impl Handler<RefreshOutdated> for Updater {
         let mut db = self.db.clone();
         let feed_manager = self.feed_manager.clone();
 
-        Box::new(actix::fut::wrap_future(async move {
+        Box::pin(actix::fut::wrap_future(async move {
             log::debug!("Refreshing outdated feeds");
 
             let mut subscriptions = db.find_outdated_subscriptions().await.map_err(|e| {
