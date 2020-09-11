@@ -10,7 +10,7 @@ pub struct Subscription {
     pub feed_url: String,
     pub title: String,
     pub site_url: Option<String>,
-    pub refreshed_at: chrono::NaiveDateTime,
+    pub next_refresh: chrono::NaiveDateTime,
 }
 
 impl std::fmt::Display for Subscription {
@@ -25,7 +25,7 @@ pub struct NewSubscription {
     pub feed_url: String,
     pub title: String,
     pub site_url: Option<String>,
-    pub refreshed_at: chrono::NaiveDateTime,
+    pub next_refresh: chrono::NaiveDateTime,
 }
 
 impl NewSubscription {
@@ -47,7 +47,7 @@ impl NewSubscription {
             })
             .and_then(|l| make_url_absolute(&l.href, &feed_url).ok());
 
-        let refreshed_at = feed
+        let next_refresh = feed
             .updated
             .as_ref()
             .unwrap_or(&chrono::Utc::now())
@@ -57,7 +57,7 @@ impl NewSubscription {
             feed_url: feed_url.to_owned(),
             title,
             site_url,
-            refreshed_at,
+            next_refresh,
         })
     }
 }

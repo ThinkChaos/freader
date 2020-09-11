@@ -3,6 +3,7 @@ use futures::TryFutureExt;
 
 use crate::db::models::{NewItem, NewSubscription, Subscription};
 use crate::prelude::*;
+use crate::updater::Updater;
 
 #[derive(Clone)]
 pub struct FeedManager {
@@ -38,16 +39,18 @@ impl FeedManager {
 
     /// Fetch feed and store new items.
     ///
+    /// The subscription is updated with a new `next_refresh`. This
+    /// change is reflected in the database.
+    ///
     /// Result is the number of new items.
     pub async fn refresh(&self, subscription: &mut Subscription) -> Result<usize, &'static str> {
-        let fetch_time = chrono::Local::now();
         let feed = self.fetch(&subscription.feed_url).await?;
 
         let count = self.store_new_entries(&subscription, feed.entries).await?;
 
         // Update the subscription's refresh time
         let mut db = self.db.clone();
-        subscription.refreshed_at = fetch_time.naive_utc();
+        subscription.next_refresh = Updater::next_refresh().naive_utc();
         *subscription = db
             .update_subscription(subscription.clone())
             .await

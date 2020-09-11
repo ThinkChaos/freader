@@ -3,7 +3,7 @@ CREATE TABLE subscriptions (
     feed_url VARCHAR(1024) NOT NULL,
     title VARCHAR(256) NOT NULL,
     site_url VARCHAR(256),
-    refreshed_at TIMESTAMP NOT NULL,
+    next_refresh TIMESTAMP NOT NULL,
 
     CONSTRAINT unique_feed_url UNIQUE (feed_url)
 );

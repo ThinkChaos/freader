@@ -90,16 +90,11 @@ impl Helper {
         })
     }
 
-    pub fn find_outdated_subscriptions(
-        &mut self,
-        updated_before: chrono::DateTime<chrono::Utc>,
-    ) -> impl DatabaseFuture<Vec<Subscription>> {
+    pub fn find_outdated_subscriptions(&mut self) -> impl DatabaseFuture<Vec<Subscription>> {
         self.find_all(move || {
             use schema::subscriptions::dsl::*;
 
-            let updated_before = updated_before.naive_utc();
-
-            subscriptions.filter(refreshed_at.le(updated_before))
+            subscriptions.filter(next_refresh.le(diesel::dsl::now))
         })
     }
 

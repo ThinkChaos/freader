@@ -1,4 +1,5 @@
 use actix::prelude::*;
+use rand::Rng;
 
 use crate::feed_manager::FeedManager;
 use crate::prelude::*;
@@ -12,6 +13,21 @@ pub struct Updater {
 impl Updater {
     pub fn new(db: db::Helper, feed_manager: FeedManager) -> Self {
         Updater { db, feed_manager }
+    }
+
+    /// Generate a DateTime one hour from (with a small random offset).
+    ///
+    /// We want to refresh each once per hour. To avoid refreshing all
+    /// feeds at once all the time, we add a small delay.
+    /// Thus even if all feeds start being refreshed at once, they will
+    /// progressively be refreshed separately.
+    pub fn next_refresh() -> chrono::DateTime<chrono::Local> {
+        let now = chrono::Local::now();
+
+        let mut rng = rand::thread_rng();
+        let offset = chrono::Duration::minutes(rng.gen_range(-5, 5));
+
+        now + chrono::Duration::hours(1) + offset
     }
 
     fn refresh_outdated(&mut self, ctx: &mut <Self as Actor>::Context) {
@@ -45,21 +61,15 @@ impl Handler<RefreshOutdated> for Updater {
     type Result = ResponseActFuture<Self, <RefreshOutdated as Message>::Result>;
 
     fn handle(&mut self, _: RefreshOutdated, _: &mut Self::Context) -> Self::Result {
-        let one_hour_ago =
-            chrono::Local::now().with_timezone(&chrono::Utc) - chrono::Duration::hours(1);
-
         let mut db = self.db.clone();
         let feed_manager = self.feed_manager.clone();
 
         Box::new(actix::fut::wrap_future(async move {
             log::debug!("Refreshing outdated feeds");
 
-            let mut subscriptions =
-                db.find_outdated_subscriptions(one_hour_ago)
-                    .await
-                    .map_err(|e| {
-                        log::error!("Could not load outdated subscriptions from db: {}", e);
-                    })?;
+            let mut subscriptions = db.find_outdated_subscriptions().await.map_err(|e| {
+                log::error!("Could not load outdated subscriptions from db: {}", e);
+            })?;
 
             let mut new_items = 0;
             let mut errors = 0;
