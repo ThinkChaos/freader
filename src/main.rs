@@ -47,7 +47,6 @@ async fn main() -> std::io::Result<()> {
     let feed_manager = FeedManager::new(db.clone());
 
     let updater = Updater::new(db.clone(), feed_manager.clone());
-    updater.start();
 
     let data = web::Data::new(AppData::new(cfg.clone(), db, feed_manager));
 
@@ -55,7 +54,7 @@ async fn main() -> std::io::Result<()> {
         std::process::exit(ecode);
     }
 
-    // Start the HTTP server
+    // Create the HTTP server
     let mut server = HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
@@ -91,9 +90,12 @@ async fn main() -> std::io::Result<()> {
 
     let server = server.workers(2);
 
+    log::info!("Listening on: http://{}:{}", cfg.http_host, cfg.http_port);
     for (addr, scheme) in server.addrs_with_scheme() {
-        log::info!("Listening on: {}://{}", scheme, addr);
+        log::debug!("Using address: {}://{}", scheme, addr);
     }
+
+    updater.start();
 
     server.run().await
 }
