@@ -1,6 +1,7 @@
 use actix::prelude::*;
 use rand::Rng;
 
+use crate::db::models::Subscription;
 use crate::feed_manager::FeedManager;
 use crate::prelude::*;
 
@@ -21,13 +22,16 @@ impl Updater {
     /// feeds at once all the time, we add a small delay.
     /// Thus even if all feeds start being refreshed at once, they will
     /// progressively be refreshed separately.
-    pub fn next_refresh() -> chrono::DateTime<chrono::Local> {
+    ///
+    /// We also take into account how many consecutive refresh errors occurred,
+    /// to avoid always refreshing a broken feed.
+    pub fn next_refresh(subscription: &Subscription) -> chrono::DateTime<chrono::Local> {
         let now = chrono::Local::now();
+        let base_offset = chrono::Duration::hours(1);
+        let error_backoff = chrono::Duration::hours(subscription.error_count.min(16) as i64);
+        let random_offset = chrono::Duration::minutes(rand::thread_rng().gen_range(-5, 5));
 
-        let mut rng = rand::thread_rng();
-        let offset = chrono::Duration::minutes(rng.gen_range(-5, 5));
-
-        now + chrono::Duration::hours(1) + offset
+        now + std::cmp::max(base_offset, error_backoff) + random_offset
     }
 
     fn refresh_outdated(&mut self, ctx: &mut <Self as Actor>::Context) {

@@ -4,8 +4,10 @@ CREATE TABLE subscriptions (
     title VARCHAR(256) NOT NULL,
     site_url VARCHAR(256),
     next_refresh TIMESTAMP NOT NULL,
+    error_count INTEGER NOT NULL,
 
-    CONSTRAINT unique_feed_url UNIQUE (feed_url)
+    CONSTRAINT unique_feed_url UNIQUE (feed_url),
+    CONSTRAINT positive_error_count CHECK(error_count >= 0)
 );
 
 CREATE TABLE categories (

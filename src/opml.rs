@@ -54,6 +54,7 @@ fn import_outlines<'a>(
                     title: title.clone(),
                     site_url,
                     next_refresh: chrono::Utc.timestamp(0, 0).naive_utc(),
+                    error_count: 0,
                 })
                 .await;
 
@@ -74,7 +75,7 @@ fn import_outlines<'a>(
                 }
             };
 
-            log::info!("Added {} ({})", title, feed_url);
+            log::info!("Added {}", subscription);
 
             if let Some(category) = &category {
                 db.subscription_add_category(subscription.id, category.clone())

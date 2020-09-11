@@ -44,13 +44,20 @@ impl FeedManager {
     ///
     /// Result is the number of new items.
     pub async fn refresh(&self, subscription: &mut Subscription) -> Result<usize, &'static str> {
-        let feed = self.fetch(&subscription.feed_url).await?;
+        let result = self
+            .fetch(&subscription.feed_url)
+            .and_then(|feed| self.store_new_entries(&subscription, feed.entries))
+            .await;
 
-        let count = self.store_new_entries(&subscription, feed.entries).await?;
+        subscription.error_count = if result.is_ok() {
+            0
+        } else {
+            subscription.error_count + 1
+        };
 
         // Update the subscription's refresh time
         let mut db = self.db.clone();
-        subscription.next_refresh = Updater::next_refresh().naive_utc();
+        subscription.next_refresh = Updater::next_refresh(subscription).naive_utc();
         *subscription = db
             .update_subscription(subscription.clone())
             .await
@@ -59,7 +66,7 @@ impl FeedManager {
                 "Database error."
             })?;
 
-        Ok(count)
+        result
     }
 
     async fn fetch(&self, url: &str) -> Result<Feed, &'static str> {

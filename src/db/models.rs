@@ -11,6 +11,7 @@ pub struct Subscription {
     pub title: String,
     pub site_url: Option<String>,
     pub next_refresh: chrono::NaiveDateTime,
+    pub error_count: i32,
 }
 
 impl std::fmt::Display for Subscription {
@@ -26,6 +27,7 @@ pub struct NewSubscription {
     pub title: String,
     pub site_url: Option<String>,
     pub next_refresh: chrono::NaiveDateTime,
+    pub error_count: i32,
 }
 
 impl NewSubscription {
@@ -58,6 +60,7 @@ impl NewSubscription {
             title,
             site_url,
             next_refresh,
+            error_count: 0,
         })
     }
 }

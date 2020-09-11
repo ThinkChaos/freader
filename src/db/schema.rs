@@ -34,6 +34,7 @@ table! {
         title -> Text,
         site_url -> Nullable<Text>,
         next_refresh -> Timestamp,
+        error_count -> Integer,
     }
 }
 
