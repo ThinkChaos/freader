@@ -1,8 +1,8 @@
 CREATE TABLE subscriptions (
     id INTEGER PRIMARY KEY NOT NULL,
-    feed_url VARCHAR(1024) NOT NULL,
+    feed_url VARCHAR(4096) NOT NULL,
     title VARCHAR(256) NOT NULL,
-    site_url VARCHAR(256),
+    site_url VARCHAR(4096),
     next_refresh TIMESTAMP NOT NULL,
     error_count INTEGER NOT NULL,
 
