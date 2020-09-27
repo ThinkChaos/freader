@@ -19,11 +19,19 @@ use feed_manager::FeedManager;
 use prelude::*;
 use updater::Updater;
 
+const ENV_FILENAME: &str = "freader.env";
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    if let Err(err) = dotenv::from_filename("freader.env") {
-        eprintln!("{}", err);
-        std::process::exit(1);
+    match dotenv::from_filename(ENV_FILENAME) {
+        Ok(_) => {
+            log::debug!("Read {}", ENV_FILENAME);
+        }
+        Err(dotenv::Error::Io(io_err)) if io_err.kind() == std::io::ErrorKind::NotFound => (),
+        Err(err) => {
+            eprintln!("Could not parse {}: {}", ENV_FILENAME, err);
+            std::process::exit(1);
+        }
     }
 
     env_logger::init();
@@ -84,7 +92,18 @@ async fn main() -> std::io::Result<()> {
             log::debug!("Ignoring configured host and port: using socket from systemfd");
             server.listen(l)?
         } else {
-            server.bind((cfg.http_host.as_str(), cfg.http_port))?
+            match server.bind((cfg.http_host.as_str(), cfg.http_port)) {
+                Ok(server) => server,
+                Err(err) => {
+                    log::error!(
+                        "Could not bind to address '{}:{}': {}",
+                        cfg.http_host,
+                        cfg.http_port,
+                        err
+                    );
+                    std::process::exit(2);
+                }
+            }
         };
     }
 
