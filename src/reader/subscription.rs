@@ -164,12 +164,20 @@ pub const SUBSCRIPTION_ID_PREFIX: &str = "feed/";
 /// A subscription is a feed.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[derive(Hash, Eq, PartialEq)]
-#[serde(into = "String", try_from = "&str")]
+#[serde(into = "String", try_from = "String")]
 pub struct SubscriptionId(pub db::Id);
 
 impl std::convert::Into<String> for SubscriptionId {
     fn into(self) -> String {
         format!("{}{}", SUBSCRIPTION_ID_PREFIX, self.0.inner())
+    }
+}
+
+impl std::convert::TryFrom<String> for SubscriptionId {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
     }
 }
 
@@ -195,12 +203,20 @@ pub const LABEL_ID_PREFIX: &str = "user/-/label/";
 /// A label identifies a folder or a tag.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[derive(Hash, Eq, PartialEq)]
-#[serde(into = "String", try_from = "&str")]
+#[serde(into = "String", try_from = "String")]
 pub struct LabelId(pub String);
 
 impl std::convert::Into<String> for LabelId {
     fn into(self) -> String {
         format!("{}{}", LABEL_ID_PREFIX, self.0)
+    }
+}
+
+impl std::convert::TryFrom<String> for LabelId {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
     }
 }
 

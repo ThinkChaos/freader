@@ -188,7 +188,7 @@ async fn item_contents(
 /// A Stream represents a set of items.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[derive(Hash, Eq, PartialEq)]
-#[serde(into = "String", try_from = "&str")]
+#[serde(into = "String", try_from = "String")]
 pub enum StreamId {
     /// All unread items.
     Unread,
@@ -213,6 +213,14 @@ impl std::convert::Into<String> for StreamId {
             UserLabel(id) => id.into(),
             Subscription(id) => id.into(),
         }
+    }
+}
+
+impl TryFrom<String> for StreamId {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
     }
 }
 
@@ -244,8 +252,16 @@ pub const LONG_ITEM_ID_PREFIX: &str = "tag:google.com,2005:reader/item/";
 /// the long form is specified on each struct field using: `serialize_with`.
 #[derive(Debug, Clone, Deserialize)]
 #[derive(Hash, Eq, PartialEq)]
-#[serde(try_from = "&str")]
+#[serde(try_from = "String")]
 pub struct ItemId(pub db::Id);
+
+impl TryFrom<String> for ItemId {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
+    }
+}
 
 impl<'a> TryFrom<&'a str> for ItemId {
     type Error = String;
