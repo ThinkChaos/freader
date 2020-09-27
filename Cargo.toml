@@ -11,11 +11,11 @@ dev = ["listenfd"]
 actix = "0.10.0"
 actix-http = "2.0.0"
 actix-service = "1.0.6"
-actix-web = "3.0.0"
-chrono = { version = "0.4.15", features = ["serde"] }
+actix-web = "3.0.2"
+chrono = { version = "0.4.18", default-features = false, features = ["clock", "serde"] }
 diesel = { version = "1.4.5", default-features = false, features = ["chrono", "sqlite"] }
 dotenv = "0.15.0"
-env_logger = "0.7.1"
+env_logger = { version = "0.7.1", default-features = false, features = ["termcolor", "atty", "humantime"] }
 feed-rs = "0.4.0"
 futures = "0.3.5"
 listenfd = { version = "0.3.3", optional = true }
@@ -23,4 +23,4 @@ log = "0.4.11"
 opml = "0.3.0"
 rand = "0.7.3"
 reqwest = "0.10.8"
-serde = "1.0.115"
+serde = "1.0.116"
