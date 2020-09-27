@@ -2,7 +2,7 @@ use actix_service::{Service, Transform};
 use actix_web::{
     dev::{Body, ServiceRequest, ServiceResponse},
     http::header,
-    HttpResponse,
+    web, HttpResponse,
 };
 use futures::future::{self, Either, Ready};
 use std::future::Future;
@@ -59,7 +59,7 @@ where
 
     fn call(&mut self, req: Self::Request) -> Self::Future {
         let app_data = req
-            .app_data::<AppData>()
+            .app_data::<web::Data<AppData>>()
             .expect("Could not extract AppData");
 
         let authorized = req
